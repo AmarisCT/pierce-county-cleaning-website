@@ -1,13 +1,33 @@
 # Photos
 
-The "Stone & Linen" design is photo-led. Until real photos are added, each photo slot shows a soft stone-toned placeholder with a small caption describing the shot.
+The "Stone & Linen" design is photo-led. Every slot currently uses a free stock photo from Unsplash, listed in `src/photos.json` and credited below. The images load from Unsplash's servers, so they appear on the live site but not inside Claude's preview. Swap in your own photos whenever you have them; real photos of your work build the most trust.
+
+## Current stock photos (Unsplash License, free for commercial use, credit not required)
+
+| Slot | Photo | Photographer |
+| --- | --- | --- |
+| `home-hero` | Sunlit living room with a sectional sofa and coffee table | [Christian Lambert](https://unsplash.com/photos/sectional-sofa-near-coffee-table-and-window-hlOpCML8twI) |
+| `home-about` | Stack of clean white towels in soft morning sun | [Mads Leif Hansen](https://unsplash.com/photos/stack-of-clean-white-towels-on-a-surface-qPNgpYUCW0c) |
+| `home-promise` | White towel on a towel rack against a bathroom wall | [Lukas Schroeder](https://unsplash.com/photos/white-towel-on-stainless-steel-towel-rack-sB2K_If9qI0) |
+| `service-standard` | Bed made with white sheets and pillows | [Liz Vo](https://unsplash.com/photos/a-bed-with-white-sheets-and-white-pillows-pl3sj3DigxM) |
+| `service-recurring` | Bright kitchen with a sink, stove and window | [Bailey Alexander](https://unsplash.com/photos/a-kitchen-with-a-sink-stove-and-a-window-2dnjAACDNd8) |
+| `service-deep` | White bath towel on a white bathtub | [the blowup](https://unsplash.com/photos/white-bath-towel-on-white-ceramic-bathtub-4dUC7Fine5g) |
+| `service-moveout` | Empty room with a wooden floor and white walls | [Lisa Anna](https://unsplash.com/photos/an-empty-room-with-a-wooden-floor-and-white-walls-z6YCmjEAtMw) |
+| `res-standard` | Close-up of a smooth white bed sheet | [Kateryna Hliznitsova](https://unsplash.com/photos/a-close-up-of-a-bed-with-a-white-sheet-2NDtPNiLcD0) |
+| `res-deep` | Clean bathroom sink with a large mirror | [Peter Muniz](https://unsplash.com/photos/a-bathroom-sink-with-a-large-mirror-above-it-zUV2aeRx2Mc) |
+| `res-moveout` | Empty room with hardwood floors and white walls | [Lisa Anna](https://unsplash.com/photos/an-empty-room-with-hard-wood-floors-and-white-walls-ITA4ysSN8xA) |
+| `res-recurring` | Sunlit kitchen with a white island and cabinets | [Jason Briscoe](https://unsplash.com/photos/white-wooden-kitchen-island-and-cupboard-cabinets-near-glass-panel-door-AQl-J19ocWE) |
+| `com-office` | Quiet office with a desk, chair and a vase of flowers | [Francesco Liotti](https://unsplash.com/photos/a-desk-with-a-chair-and-a-vase-of-flowers-3HP6_D9hxFY) |
+| `services-addons` | Bright kitchen with white cabinets and hexagonal wall tiles | [roam in color](https://unsplash.com/photos/kitchen-with-white-cabinets-and-tiles-z3QZ6gjGRt4) |
+| `about` | Two amber spray bottles on a wooden table | [Daiga Ellaby](https://unsplash.com/photos/two-brown-spray-bottles-on-brown-table-uooMllXe6gE) |
+| `areas` | Mount Rainier at sunset | [Caleb Riston](https://unsplash.com/photos/mount-rainier-under-soft-sky-TXiBwX0kg-Q) |
 
 ## How to add a photo
 
 1. Save the image in `src/assets/photos/` using the slot name below, as `.jpg`, `.jpeg`, `.webp` or `.png` (for example `home-hero.jpg`).
-2. Run `node build.js`. The photo replaces the placeholder everywhere that slot is used.
+2. Run `node build.js`. Your file replaces the stock photo everywhere that slot is used.
 
-`node build.js` lists any slots that still need a photo.
+To use a different Unsplash photo instead, change that slot's `id` in `src/photos.json` (the `photo-…` part of its images.unsplash.com address).
 
 ## Slots
 

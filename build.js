@@ -35,6 +35,8 @@ function readMeta(src) {
 }
 
 const missingPhotos = new Set();
+const STOCK = (() => { try { return JSON.parse(fs.readFileSync(path.join(SRC, "photos.json"), "utf8")); } catch { return {}; } })();
+const stockUrl = (id, w) => `https://images.unsplash.com/${id}?auto=format&amp;fit=crop&amp;q=75&amp;w=${w}`;
 function findPhoto(name) {
   for (const ext of ["jpg", "jpeg", "webp", "png"]) {
     const f = `${name}.${ext}`;
@@ -48,7 +50,14 @@ function renderPhotos(body) {
     attrs.replace(/(\w+)="([^"]*)"/g, (__, k, v) => { a[k] = v; });
     const cls = ["photo", `tone-${a.tone || "sand"}`].concat(a.class ? a.class.split(/\s+/) : []).join(" ");
     const src = a.name && findPhoto(a.name);
-    if (src) return `<div class="${cls}"><img src="${src}" alt="${esc(a.alt || "")}" loading="lazy"></div>`;
+    const lazy = a.name === "home-hero" ? 'fetchpriority="high"' : 'loading="lazy"';
+    if (src) return `<div class="${cls}"><img src="${src}" alt="${esc(a.alt || "")}" ${lazy}></div>`;
+    const stock = a.name && STOCK[a.name];
+    if (stock && stock.id) {
+      const sizes = a.sizes || (a.name === "home-hero" ? "100vw" : "(max-width: 860px) 100vw, 50vw");
+      const srcset = [640, 1080, 1600, 2400].map(w => `${stockUrl(stock.id, w)} ${w}w`).join(", ");
+      return `<div class="${cls}"><img src="${stockUrl(stock.id, 1600)}" srcset="${srcset}" sizes="${sizes}" alt="${esc(stock.alt || a.alt || "")}" ${lazy}></div>`;
+    }
     if (a.name) missingPhotos.add(`${a.name} — ${a.alt || ""}`);
     return `<div class="${cls}" role="img" aria-label="${esc(a.alt || "")}"><span class="ph">Photo · ${esc(a.note || a.alt || a.name)}</span></div>`;
   });
