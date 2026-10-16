@@ -1,23 +1,30 @@
 #!/usr/bin/env node
 // Builds the static site: src/pages/*.html (content fragments) + layout -> site/
 // No dependencies. Run: node build.js
+//
+// Photos: pages place photos with {{photo name="hero" tone="light" alt="..." note="..."}}.
+// Drop a file named <name>.jpg / .jpeg / .png / .webp into src/assets/photos/ and rebuild:
+// it replaces the toned placeholder. Missing photos are listed when you build.
 const fs = require("fs");
 const path = require("path");
 
 const SRC = path.join(__dirname, "src");
 const OUT = path.join(__dirname, "site");
+const PHOTOS = path.join(SRC, "assets", "photos");
 const SITE_URL = process.env.SITE_URL || "https://piercecountycleaning.com"; // TODO(owner): set once the domain is confirmed
 
 const NAV = [
   ["index.html", "Home"],
   ["residential.html", "Residential"],
   ["commercial.html", "Commercial"],
-  ["services.html", "Services & Pricing"],
-  ["service-areas.html", "Service Areas"],
+  ["services.html", "Services & Prices"],
   ["about.html", "About"],
+  ["service-areas.html", "Areas"],
   ["faq.html", "FAQ"],
   ["contact.html", "Contact"]
 ];
+
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 
 function readMeta(src) {
   const meta = {};
@@ -27,7 +34,25 @@ function readMeta(src) {
   return { meta, body: src };
 }
 
-const esc = s => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+const missingPhotos = new Set();
+function findPhoto(name) {
+  for (const ext of ["jpg", "jpeg", "webp", "png"]) {
+    const f = `${name}.${ext}`;
+    if (fs.existsSync(path.join(PHOTOS, f))) return `assets/photos/${f}`;
+  }
+  return null;
+}
+function renderPhotos(body) {
+  return body.replace(/\{\{photo\s+([^}]*)\}\}/g, (_, attrs) => {
+    const a = {};
+    attrs.replace(/(\w+)="([^"]*)"/g, (__, k, v) => { a[k] = v; });
+    const cls = ["photo", `tone-${a.tone || "sand"}`].concat(a.class ? a.class.split(/\s+/) : []).join(" ");
+    const src = a.name && findPhoto(a.name);
+    if (src) return `<div class="${cls}"><img src="${src}" alt="${esc(a.alt || "")}" loading="lazy"></div>`;
+    if (a.name) missingPhotos.add(`${a.name} — ${a.alt || ""}`);
+    return `<div class="${cls}" role="img" aria-label="${esc(a.alt || "")}"><span class="ph">Photo · ${esc(a.note || a.alt || a.name)}</span></div>`;
+  });
+}
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -44,50 +69,58 @@ function layout(file, meta, body) {
   const nav = NAV.map(([href, label]) =>
     `<li><a href="${href}"${href === file ? ' aria-current="page"' : ""}>${label}</a></li>`).join("");
   const canonical = `${SITE_URL}/${file === "index.html" ? "" : file}`;
+  const footCta = file === "quote.html" ? "" : `
+<div class="wrap foot-cta">
+  <span class="serif">Ready when you are</span>
+  <a class="btn" href="quote.html">Request a quote</a>
+</div>`;
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${esc(meta.title)}</title>
 <meta name="description" content="${esc(meta.description)}">
 <link rel="canonical" href="${canonical}">
 <meta property="og:title" content="${esc(meta.title)}">
 <meta property="og:description" content="${esc(meta.description)}">
 <meta property="og:type" content="website">
+<meta name="theme-color" content="#ECE8E2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Jost:wght@300;400;500&display=swap">
 <link rel="stylesheet" href="assets/site.css">
 ${file === "index.html" ? `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>` : ""}
-${meta.noindex ? '<meta name="robots" content="noindex">' : ""}
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-head">
   <div class="wrap">
-    <a class="brand" href="index.html"><b>Pierce County Cleaning Services</b><span>Clean Spaces, Clear Minds.</span></a>
-    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
-    <nav class="site-nav" id="site-nav" aria-label="Main"><ul>${nav}<li><a class="btn" href="quote.html">Request a quote</a></li></ul></nav>
+    <a class="brand" href="index.html"><b>Pierce County Cleaning</b><span>Clean Spaces, Clear Minds.</span></a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">
+      <svg width="20" height="12" viewBox="0 0 20 12" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M0 1h20M0 6h20M0 11h20"/></svg>
+    </button>
+    <nav class="site-nav" id="site-nav" aria-label="Main"><ul>${nav}<li><a class="nav-cta" href="quote.html"${file === "quote.html" ? ' aria-current="page"' : ""}>Request a quote</a></li></ul></nav>
   </div>
 </header>
 <main id="main">
-${body.trim()}
+${renderPhotos(body.trim())}
 </main>
-<footer class="site-foot">
+<footer>${footCta}
+<div class="site-foot">
   <div class="wrap">
-    <div><b>Pierce County Cleaning Services LLC</b><br>Clean Spaces, Clear Minds.<br>Serving Tacoma, Puyallup, Lakewood, Spanaway and nearby Pierce County communities.</div>
     <ul>
-      <li data-contact="phone">Phone: <span data-value></span></li>
-      <li data-contact="email">Email: <span data-value></span></li>
-      <li><a href="quote.html">Request a quote</a></li>
+      <li>&copy; <span data-year></span> Pierce County Cleaning Services LLC</li>
+      <li data-contact="phone"><span data-value></span></li>
+      <li data-contact="email"><span data-value></span></li>
     </ul>
     <ul>
-      <li><a href="privacy.html">Privacy policy</a></li>
-      <li><a href="terms.html">Terms of service</a></li>
-      <li>&copy; <span data-year></span> Pierce County Cleaning Services LLC</li>
+      <li><a href="quote.html">Quote</a></li>
+      <li><a href="privacy.html">Privacy</a></li>
+      <li><a href="terms.html">Terms</a></li>
     </ul>
   </div>
+</div>
 </footer>
 <script src="assets/config.js"></script>
 <script src="assets/prices.js"></script>
@@ -98,12 +131,18 @@ ${meta.script ? `<script src="assets/${meta.script}"></script>` : ""}
 `;
 }
 
+function copyDir(from, to) {
+  fs.mkdirSync(to, { recursive: true });
+  for (const e of fs.readdirSync(from, { withFileTypes: true })) {
+    if (e.name.startsWith(".")) continue;
+    const s = path.join(from, e.name), d = path.join(to, e.name);
+    e.isDirectory() ? copyDir(s, d) : fs.copyFileSync(s, d);
+  }
+}
+
 function build() {
   fs.rmSync(OUT, { recursive: true, force: true });
-  fs.mkdirSync(path.join(OUT, "assets"), { recursive: true });
-  for (const f of fs.readdirSync(path.join(SRC, "assets"))) {
-    fs.copyFileSync(path.join(SRC, "assets", f), path.join(OUT, "assets", f));
-  }
+  copyDir(path.join(SRC, "assets"), path.join(OUT, "assets"));
   const pages = fs.readdirSync(path.join(SRC, "pages")).filter(f => f.endsWith(".html")).sort();
   const urls = [];
   for (const f of pages) {
@@ -116,5 +155,9 @@ function build() {
     `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u => `  <url><loc>${u}</loc></url>`).join("\n")}\n</urlset>\n`);
   fs.writeFileSync(path.join(OUT, "robots.txt"), `User-agent: *\nAllow: /\nSitemap: ${SITE_URL}/sitemap.xml\n`);
   console.log(`Built ${pages.length} pages into site/`);
+  if (missingPhotos.size) {
+    console.log(`\n${missingPhotos.size} photo slot(s) still use placeholders. Add files to src/assets/photos/:`);
+    for (const p of [...missingPhotos].sort()) console.log("  - " + p);
+  }
 }
 build();

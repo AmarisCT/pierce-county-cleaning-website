@@ -3,6 +3,8 @@
 Official website for **Pierce County Cleaning Services LLC** — *Clean Spaces, Clear Minds.*
 Residential and small-business cleaning in Tacoma, Puyallup, Lakewood, Spanaway and nearby Pierce County communities.
 
+**Design:** "Stone & Linen" — warm stone background, condensed serif capitals (Instrument Serif), Jost for body text, thin ink rules between full-width sections, and photo-led panels. Photos go in `src/assets/photos/`; see [docs/photos.md](docs/photos.md).
+
 > **Status: draft, not published.** Prices, policies and service areas need owner approval before launch. See [docs/launch-checklist.md](docs/launch-checklist.md).
 
 ## What's here
@@ -13,6 +15,7 @@ Residential and small-business cleaning in Tacoma, Puyallup, Lakewood, Spanaway 
 | `src/assets/config.js` | **Edit this first:** phone, email, quote form endpoint, show/hide prices |
 | `src/assets/prices.js` | Draft launch prices and add-ons used on every page and in the quote estimator |
 | `src/assets/site.css`, `site.js`, `quote.js` | Styles, shared behavior, quote form |
+| `src/assets/photos/` | Your photos, named by slot (see docs/photos.md) |
 | `build.js` | Builds the finished site into `site/` (no dependencies) |
 | `site/` | Built website, ready to host. Don't edit by hand; edit `src/` and rebuild |
 | `internal/pricing-calculator.html` | Private job-profit calculator. **Not part of the public site** — open it locally |

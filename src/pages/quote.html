@@ -1,76 +1,80 @@
 <!-- title: Request a Cleaning Quote | Pierce County Cleaning Services -->
 <!-- description: Get an instant estimate for house cleaning in Tacoma and Pierce County, then send your request for a confirmed price. -->
 <!-- script: quote.js -->
-<div class="wrap hero">
-  <div class="eyebrow">Request a quote</div>
-  <h1>Get your price</h1>
-  <p class="lead">Fill in your home's details to see an estimate. We'll confirm the final price and your appointment before anything is charged.</p>
-</div>
+<section>
+  <div class="wrap page-head">
+    <span class="caps muted">Request a quote</span>
+    <h1>Your price</h1>
+    <p class="lead">Fill in your home's details to see an estimate. We confirm the final price and your appointment before anything is charged.</p>
+  </div>
+</section>
 
-<section class="band"><div class="wrap quote-grid">
-  <form class="quote" id="quote-form" novalidate>
-    <fieldset>
-      <legend>Service</legend>
-      <div class="row">
-        <label for="q-type">Property type
-          <select id="q-type" name="propertyType">
-            <option value="house">House</option><option value="apartment">Apartment</option><option value="condo">Condo / townhome</option><option value="commercial">Office or commercial space</option><option value="rental">Short-term rental</option>
-          </select></label>
-        <label for="q-service">Service
-          <select id="q-service" name="service">
-            <option value="standard">Standard clean</option><option value="deep">Deep clean</option><option value="moveout">Move-in / move-out</option><option value="recurring">Recurring service</option><option value="commercial">Commercial walkthrough</option>
-          </select></label>
-        <label for="q-frequency">Frequency
-          <select id="q-frequency" name="frequency">
-            <option value="once">One-time</option><option value="weekly">Weekly</option><option value="biweekly" selected>Biweekly</option><option value="monthly">Monthly</option>
-          </select></label>
+<section>
+  <div class="wrap pad quote-grid">
+    <form class="quote" id="quote-form" novalidate>
+      <fieldset>
+        <legend>The service</legend>
+        <div class="row">
+          <label for="q-type">Property type
+            <select id="q-type" name="propertyType">
+              <option value="house">House</option><option value="apartment">Apartment</option><option value="condo">Condo / townhome</option><option value="commercial">Office or commercial space</option><option value="rental">Short-term rental</option>
+            </select></label>
+          <label for="q-service">Service
+            <select id="q-service" name="service">
+              <option value="standard">Standard clean</option><option value="deep">Deep clean</option><option value="moveout">Move-in / move-out</option><option value="recurring">Recurring service</option><option value="commercial">Commercial walkthrough</option>
+            </select></label>
+          <label for="q-frequency">Frequency
+            <select id="q-frequency" name="frequency">
+              <option value="once">One-time</option><option value="weekly">Weekly</option><option value="biweekly" selected>Biweekly</option><option value="monthly">Monthly</option>
+            </select></label>
+        </div>
+      </fieldset>
+
+      <fieldset id="home-fields">
+        <legend>Your home</legend>
+        <div class="row">
+          <label for="q-beds">Bedrooms
+            <select id="q-beds" name="bedrooms"><option value="0">Studio</option><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option><option value="5">5+</option></select></label>
+          <label for="q-baths">Bathrooms
+            <select id="q-baths" name="bathrooms"><option value="1" selected>1</option><option value="1.5">1.5</option><option value="2">2</option><option value="2.5">2.5</option><option value="3">3+</option></select></label>
+          <label for="q-sqft">Square feet <span class="opt">(approx.)</span><input id="q-sqft" name="sqft" type="number" min="200" step="50" inputmode="numeric" placeholder="e.g. 1,200"></label>
+        </div>
+        <div><p class="caps" style="margin-bottom:10px">Add-ons</p><div class="chips" id="q-addons"></div></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>When &amp; where</legend>
+        <div class="row">
+          <label for="q-date">Preferred date<input id="q-date" name="date" type="date"></label>
+          <label for="q-zip">ZIP code<input id="q-zip" name="zip" inputmode="numeric" maxlength="5" placeholder="98402" required></label>
+        </div>
+        <label for="q-address">Service address<input id="q-address" name="address" autocomplete="street-address" required></label>
+        <label for="q-notes">Anything we should know? <span class="opt">(pets, parking, problem areas)</span><textarea id="q-notes" name="notes"></textarea></label>
+        <p class="note">Please don't include door or alarm codes here. We collect access details securely once your booking is confirmed.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Your details</legend>
+        <div class="row">
+          <label for="q-name">Name<input id="q-name" name="name" autocomplete="name" required></label>
+          <label for="q-phone">Phone<input id="q-phone" name="phone" type="tel" autocomplete="tel" required></label>
+          <label for="q-email">Email<input id="q-email" name="email" type="email" autocomplete="email" required></label>
+        </div>
+        <p class="note">We use these details only to answer your request. See our <a href="privacy.html">privacy policy</a>.</p>
+      </fieldset>
+
+      <p class="note" id="q-error" role="alert" hidden></p>
+      <div><button class="btn" type="submit" id="q-submit">Send my request</button></div>
+    </form>
+
+    <aside class="sticky" aria-live="polite">
+      <div class="estimate" id="q-estimate">
+        <span class="caps">Estimated price</span>
+        <b id="q-total">—</b>
+        <span class="note" id="q-detail"></span>
       </div>
-    </fieldset>
-
-    <fieldset id="home-fields">
-      <legend>Your home</legend>
-      <div class="row">
-        <label for="q-beds">Bedrooms
-          <select id="q-beds" name="bedrooms"><option value="0">Studio</option><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option><option value="5">5+</option></select></label>
-        <label for="q-baths">Bathrooms
-          <select id="q-baths" name="bathrooms"><option value="1" selected>1</option><option value="1.5">1.5</option><option value="2">2</option><option value="2.5">2.5</option><option value="3">3+</option></select></label>
-        <label for="q-sqft">Square feet <span class="opt">(approx.)</span><input id="q-sqft" name="sqft" type="number" min="200" step="50" inputmode="numeric" placeholder="e.g. 1,200"></label>
-      </div>
-      <div><p class="note" style="margin-bottom:8px">Add-ons</p><div class="chips" id="q-addons"></div></div>
-    </fieldset>
-
-    <fieldset>
-      <legend>When and where</legend>
-      <div class="row">
-        <label for="q-date">Preferred date<input id="q-date" name="date" type="date"></label>
-        <label for="q-zip">ZIP code<input id="q-zip" name="zip" inputmode="numeric" maxlength="5" placeholder="98402" required></label>
-      </div>
-      <label for="q-address">Service address<input id="q-address" name="address" autocomplete="street-address" required></label>
-      <label for="q-notes">Anything we should know? <span class="opt">(pets, parking, problem areas)</span><textarea id="q-notes" name="notes"></textarea></label>
-      <p class="note">Please don't include door codes or alarm codes here. We'll collect access details securely once your booking is confirmed.</p>
-    </fieldset>
-
-    <fieldset>
-      <legend>Your details</legend>
-      <div class="row">
-        <label for="q-name">Name<input id="q-name" name="name" autocomplete="name" required></label>
-        <label for="q-phone">Phone<input id="q-phone" name="phone" type="tel" autocomplete="tel" required></label>
-        <label for="q-email">Email<input id="q-email" name="email" type="email" autocomplete="email" required></label>
-      </div>
-      <p class="note">We use these details only to answer your request. See our <a href="privacy.html">privacy policy</a>.</p>
-    </fieldset>
-
-    <p class="note" id="q-error" role="alert" hidden></p>
-    <div class="btn-row"><button class="btn" type="submit" id="q-submit">Send my request</button></div>
-  </form>
-
-  <aside class="sticky" aria-live="polite">
-    <div class="estimate" id="q-estimate">
-      <span class="note">Estimated price</span>
-      <b id="q-total">—</b>
-      <span class="note" id="q-detail"></span>
-    </div>
-    <p class="note">Estimates assume typical condition. We confirm the final price before booking.</p>
-    <div class="result" id="q-result" hidden></div>
-  </aside>
-</div></section>
+      <p class="note">Estimates assume typical condition. We confirm the final price before booking.</p>
+      <div class="result" id="q-result" hidden></div>
+    </aside>
+  </div>
+</section>

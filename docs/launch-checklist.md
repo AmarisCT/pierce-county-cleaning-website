@@ -13,6 +13,7 @@ Everything here needs the owner. Items are in the order they unblock launch.
 - [ ] Choose a form service or booking tool and set `quoteEndpoint`
 - [ ] Confirm ownership of the domain (piercecountycleaning.com was a proposal, not confirmed)
 - [ ] Add the logo file to `src/assets/` and the header in `build.js`
+- [ ] Add photos for the 15 photo slots (see [photos.md](photos.md))
 - [ ] Only after certificates exist: add "insured and bonded" to `about.html`
 
 ## At publishing
