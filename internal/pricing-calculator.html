@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>PCCS Pricing Calculator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one working sheet — inputs left, live job ledger right; stacks on phones */
+:root{
+  --bg:#f6f8f7; --surface:#ffffff; --ink:#1d2a2b; --muted:#5b6b6c; --line:#d9e2e0;
+  --accent:#1f7a68; --accent-soft:#e2f1ec; --good:#1f7a68; --warn:#a86a12; --bad:#b33a2e;
+  --display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --body:"Figtree",ui-sans-serif,system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121a1b; --surface:#1a2526; --ink:#e4ecea; --muted:#9aaba9; --line:#2c3a3b;
+  --accent:#5cc4a8; --accent-soft:#1d3531; --good:#5cc4a8; --warn:#e0a650; --bad:#ef7d70; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121a1b; --surface:#1a2526; --ink:#e4ecea; --muted:#9aaba9; --line:#2c3a3b;
+  --accent:#5cc4a8; --accent-soft:#1d3531; --good:#5cc4a8; --warn:#e0a650; --bad:#ef7d70; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 48px}
+.wrap{max-width:1080px;margin:0 auto;display:grid;gap:20px}
+header h1{font:700 clamp(26px,4vw,36px)/1.1 var(--display);margin:0;text-wrap:balance}
+header p{margin:6px 0 0;color:var(--muted);max-width:65ch}
+.eyebrow{font:500 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:20px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:1fr}}
+fieldset{border:1px solid var(--line);border-radius:10px;background:var(--surface);margin:0;padding:16px;display:grid;gap:12px;min-width:0}
+legend{font:600 13px var(--display);letter-spacing:.02em;padding:0 6px}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
+label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+input,select{font:500 15px var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;box-sizing:border-box}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips label{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;color:var(--ink);cursor:pointer;background:var(--bg)}
+.chips input{width:auto;margin:0;accent-color:var(--accent)}
+.chips label:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+details summary{cursor:pointer;font:600 13px var(--display)}
+.ledger{position:sticky;top:max(16px,env(safe-area-inset-top,0px));background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;display:grid;gap:14px}
+.price{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.price b{font:700 44px/1 var(--display)}
+.price span{color:var(--muted);font-size:13px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+td{padding:6px 0;border-bottom:1px solid var(--line)}
+td:last-child{text-align:right;font-family:var(--mono);font-size:14px}
+tr.total td{font-weight:600;border-bottom:none}
+.pill{display:inline-block;border-radius:999px;padding:3px 10px;font:600 12px var(--body)}
+.pill.good{background:var(--accent-soft);color:var(--good)}
+.pill.warn{color:var(--warn);border:1px solid var(--warn)}
+.pill.bad{color:var(--bad);border:1px solid var(--bad)}
+.note{font-size:13px;color:var(--muted);margin:0}
+.tax{border-left:3px solid var(--accent);padding:6px 10px;font-size:13px;background:var(--accent-soft);border-radius:0 6px 6px 0}
+.tax.retail{border-color:var(--warn)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="eyebrow">Pierce County Cleaning Services LLC · Draft for approval</div>
+  <h1>Job pricing &amp; profit calculator</h1>
+  <p>Sized for W‑2 cleaners at Washington 2026 costs. Change any input; the ledger recalculates. Defaults are planning assumptions, not quotes — confirm wage, overhead and B&amp;O rate with your accountant.</p>
+</header>
+<div class="grid">
+<form id="f" autocomplete="off">
+ <div style="display:grid;gap:16px">
+  <fieldset><legend>The home</legend>
+   <div class="row">
+    <label>Bedrooms<input id="bedrooms" type="number" min="0" max="8" step="1" value="2"></label>
+    <label>Bathrooms<input id="bathrooms" type="number" min="1" max="6" step="0.5" value="1"></label>
+    <label>Square feet<input id="sqft" type="number" min="200" step="50" value="900"></label>
+   </div>
+   <div class="row">
+    <label>Cleaning type<select id="type"></select></label>
+    <label>Frequency<select id="freq"></select></label>
+    <label>Labor hours (override)<input id="hoursOverride" type="number" min="0" step="0.25" placeholder="auto"></label>
+   </div>
+   <div><div class="note" style="margin-bottom:6px">Add-ons</div><div class="chips" id="addons"></div></div>
+  </fieldset>
+  <fieldset><legend>Labor (W‑2 employee model)</legend>
+   <div class="row">
+    <label>Cleaner wage $/hr<input id="wage" type="number" step="0.5" value="22"></label>
+    <label>Payroll burden %<input id="burdenPct" type="number" step="0.5" value="12.5"></label>
+    <label>L&amp;I $/hr (class 6602)<input id="lniPerHour" type="number" step="0.01" value="1.68"></label>
+   </div>
+   <div class="row">
+    <label>Paid drive time (min)<input id="travelMin" type="number" step="5" value="30"></label>
+    <label>Miles reimbursed<input id="miles" type="number" step="1" value="10"></label>
+    <label>$/mile<input id="mileageRate" type="number" step="0.01" value="0.70"></label>
+   </div>
+  </fieldset>
+  <fieldset><legend>Business costs &amp; target</legend>
+   <div class="row">
+    <label>Supplies $/job<input id="supplies" type="number" step="1" value="8"></label>
+    <label>Card fee %<input id="procPct" type="number" step="0.1" value="2.9"></label>
+    <label>Card fee $<input id="procFixed" type="number" step="0.05" value="0.30"></label>
+   </div>
+   <div class="row">
+    <label>Monthly overhead $<input id="monthlyOverhead" type="number" step="50" value="1500"></label>
+    <label>Jobs per month<input id="jobsPerMonth" type="number" step="1" min="1" value="40"></label>
+    <label>Target net margin %<input id="targetMargin" type="number" step="1" value="25"></label>
+   </div>
+   <div class="row">
+    <label>B&amp;O rate % (verify)<input id="bnoPct" type="number" step="0.01" value="1.75"></label>
+    <label>Sales tax % (retail jobs)<input id="salesTaxPct" type="number" step="0.1" value="10.3"></label>
+    <label>Quote price $ (override)<input id="priceOverride" type="number" step="5" placeholder="use recommended"></label>
+   </div>
+   <details><summary>What the defaults assume</summary>
+    <p class="note">Burden 12.5% ≈ Social Security/Medicare 7.65%, WA unemployment and FUTA, and paid sick leave accrual (1 hr per 40). L&amp;I uses the 2026 composite base rate for risk class 6602 Janitorial Services; your rate notice will set the real split. Overhead covers insurance, software, phone and marketing spread across monthly jobs. Washington’s 2026 minimum wage is $17.13.</p>
+   </details>
+  </fieldset>
+ </div>
+</form>
+<aside class="ledger" aria-live="polite">
+ <div class="eyebrow" id="jobLabel">Job</div>
+ <div class="price"><b id="price">$0</b><span id="priceNote"></span></div>
+ <div id="status"></div>
+ <table><tbody id="rows"></tbody></table>
+ <div class="tax" id="tax"></div>
+ <p class="note" id="hoursNote"></p>
+</aside>
+</div>
+</div>
+<script>
+// Pierce County Cleaning Services — pricing engine (pure functions, no DOM)
+const TYPES = {
+  standard:  { label: "Standard clean",        mult: 1.0, tax: "janitorial" },
+  deep:      { label: "Deep clean",            mult: 1.6, tax: "janitorial" },
+  moveout:   { label: "Move-in / move-out",    mult: 1.8, tax: "janitorial" },
+  turnover:  { label: "Rental turnover",       mult: 1.2, tax: "janitorial" },
+  postcon:   { label: "Post-construction",     mult: 2.2, tax: "retail" }
+};
+const FREQ = {
+  once:     { label: "One-time",  hoursMult: 1.0,  discount: 0 },
+  monthly:  { label: "Monthly",   hoursMult: 1.0,  discount: 0.05 },
+  biweekly: { label: "Biweekly",  hoursMult: 0.9,  discount: 0.10 },
+  weekly:   { label: "Weekly",    hoursMult: 0.8,  discount: 0.15 }
+};
+const ADDONS = {
+  fridge:    { label: "Inside fridge",        price: 35, hours: 0.5 },
+  oven:      { label: "Inside oven",          price: 35, hours: 0.5 },
+  cabinets:  { label: "Inside cabinets",      price: 45, hours: 0.75 },
+  windows:   { label: "Interior windows",     price: 45, hours: 0.75 },
+  baseboard: { label: "Detailed baseboards",  price: 30, hours: 0.5 },
+  laundry:   { label: "Laundry (1 load)",     price: 25, hours: 0.25 }
+};
+const DEFAULTS = {
+  bedrooms: 2, bathrooms: 1, sqft: 900, type: "standard", freq: "once",
+  hoursOverride: null, addons: [],
+  wage: 22, burdenPct: 12.5, lniPerHour: 1.68,
+  travelMin: 30, miles: 10, mileageRate: 0.70,
+  supplies: 8, procPct: 2.9, procFixed: 0.30,
+  monthlyOverhead: 1500, jobsPerMonth: 40,
+  bnoPct: 1.75, salesTaxPct: 10.3,
+  targetMargin: 30, priceOverride: null
+};
+function estHours(i) {
+  const base = 1.0 + 0.5 * i.bedrooms + 0.75 * i.bathrooms + 0.5 * (i.sqft / 1000);
+  const recurringOk = i.type === "standard";
+  const fm = recurringOk ? FREQ[i.freq].hoursMult : 1.0;
+  return base * TYPES[i.type].mult * fm;
+}
+const r5 = x => Math.ceil(x / 5) * 5;
+const money = x => Math.round(x * 100) / 100;
+function quote(input) {
+  const i = Object.assign({}, DEFAULTS, input);
+  const addons = (i.addons || []).map(k => ADDONS[k]).filter(Boolean);
+  const cleanHours = i.hoursOverride ? Number(i.hoursOverride) : estHours(i);
+  const addonHours = addons.reduce((s, a) => s + a.hours, 0);
+  const labHours = cleanHours + addonHours;
+  const paidHours = labHours + i.travelMin / 60;
+  const loadedRate = i.wage * (1 + i.burdenPct / 100) + i.lniPerHour;
+  const labor = paidHours * loadedRate;
+  const mileage = i.miles * i.mileageRate;
+  const overhead = i.monthlyOverhead / Math.max(1, i.jobsPerMonth);
+  const directCost = labor + mileage + i.supplies;
+  const isRetail = TYPES[i.type].tax === "retail";
+  // price solve: P = (directCost + overhead + procFixed) / (1 - margin - procPct - bno)
+  const varPct = (i.procPct + i.bnoPct) / 100;
+  const denom = 1 - i.targetMargin / 100 - varPct;
+  const recommended = r5((directCost + overhead + i.procFixed) / denom);
+  const discount = i.type === "standard" ? FREQ[i.freq].discount : 0;
+  const addonPrice = addons.reduce((s, a) => s + a.price, 0);
+  const price = i.priceOverride ? Number(i.priceOverride) : recommended;
+  const processing = price * i.procPct / 100 + i.procFixed;
+  const bno = price * i.bnoPct / 100;
+  const gross = price - directCost;
+  const net = gross - processing - bno - overhead;
+  return {
+    hours: money(labHours), paidHours: money(paidHours), loadedRate: money(loadedRate),
+    labor: money(labor), mileage: money(mileage), supplies: money(i.supplies),
+    processing: money(processing), bno: money(bno), overhead: money(overhead),
+    directCost: money(directCost), price: money(price), recommended,
+    gross: money(gross), grossPct: money(gross / price * 100),
+    net: money(net), netPct: money(net / price * 100),
+    salesTax: isRetail ? money(price * i.salesTaxPct / 100) : 0,
+    taxClass: isRetail ? "Retail sales tax + retailing B&O" : "Service & other B&O (no sales tax)",
+    recurringDiscountHint: discount, addonPrice
+  };
+}
+if (typeof module !== "undefined") module.exports = { quote, TYPES, FREQ, ADDONS, DEFAULTS };
+const $=id=>document.getElementById(id);
+const fmt=n=>(n<0?"−$":"$")+Math.abs(n).toFixed(2);
+for(const [k,v] of Object.entries(TYPES)) $("type").add(new Option(v.label,k));
+for(const [k,v] of Object.entries(FREQ)) $("freq").add(new Option(v.label,k));
+$("addons").innerHTML=Object.entries(ADDONS).map(([k,a])=>`<label><input type="checkbox" id="ad_${k}" value="${k}">${a.label} · $${a.price}</label>`).join("");
+const NUM=["bedrooms","bathrooms","sqft","wage","burdenPct","lniPerHour","travelMin","miles","mileageRate","supplies","procPct","procFixed","monthlyOverhead","jobsPerMonth","targetMargin","bnoPct","salesTaxPct"];
+function read(){const i={type:$("type").value,freq:$("freq").value};
+ NUM.forEach(k=>{const v=parseFloat($(k).value);i[k]=isNaN(v)?DEFAULTS[k]:v});
+ const h=parseFloat($("hoursOverride").value);i.hoursOverride=isNaN(h)||h<=0?null:h;
+ const p=parseFloat($("priceOverride").value);i.priceOverride=isNaN(p)||p<=0?null:p;
+ i.addons=[...document.querySelectorAll("#addons input:checked")].map(c=>c.value);return i}
+function render(){const i=read(),q=quote(i);
+ $("freq").disabled=i.type!=="standard"; if(i.type!=="standard") $("freq").value="once";
+ $("jobLabel").textContent=`${i.bedrooms} bed · ${i.bathrooms} bath · ${i.sqft} sq ft — ${TYPES[i.type].label}${i.type==="standard"?", "+FREQ[i.freq].label.toLowerCase():""}`;
+ $("price").textContent="$"+q.price.toFixed(0);
+ $("priceNote").textContent=i.priceOverride?`your price · recommended $${q.recommended}`:`recommended at ${i.targetMargin}% net`;
+ const cls=q.netPct>=20?"good":q.netPct>=10?"warn":"bad";
+ const word=q.netPct>=20?"Healthy margin":q.netPct>=10?"Thin margin":q.netPct>=0?"Barely covers costs":"Loses money";
+ $("status").innerHTML=`<span class="pill ${cls}">${word} · ${q.netPct.toFixed(1)}% net</span>`;
+ const r=[["Cleaner labor ("+q.paidHours+" paid hrs @ $"+q.loadedRate+" loaded)",q.labor],["Mileage",q.mileage],["Supplies",q.supplies],["Direct job cost",q.directCost,1],["Gross profit ("+q.grossPct.toFixed(0)+"%)",q.gross,1],["Card processing",q.processing],["B&O tax",q.bno],["Overhead share",q.overhead],["Net contribution",q.net,1]];
+ $("rows").innerHTML=r.map(([l,v,t])=>`<tr class="${t?"total":""}"><td>${l}</td><td>${fmt(v)}</td></tr>`).join("");
+ const retail=TYPES[i.type].tax==="retail";
+ $("tax").className="tax"+(retail?" retail":"");
+ $("tax").innerHTML=retail?`<b>Collect sales tax:</b> post-construction cleanup is treated as a retail sale in WA. Add about ${fmt(q.salesTax)} at ${i.salesTaxPct}% (rate depends on job address; builder jobs with a reseller permit differ).`:`<b>No sales tax on the invoice.</b> Routine house and janitorial cleaning is reported under Service &amp; Other B&amp;O.`;
+ $("hoursNote").textContent=`${q.hours} labor hours on site${i.addons.length?` incl. add-ons (add-on list price total $${q.addonPrice}; the recommended price already covers their time)`:""}. These are total person-hours; a two-person team halves the time on site.`;
+}
+document.getElementById("f").addEventListener("input",render);render();
+</script>
+
+</body>
+</html>
