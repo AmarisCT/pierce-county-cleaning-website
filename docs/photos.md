@@ -1,8 +1,21 @@
 # Photos
 
-The "Stone & Linen" design is photo-led. Every slot currently uses a free stock photo from Unsplash, listed in `src/photos.json` and credited below. The images load from Unsplash's servers, so they appear on the live site but not inside Claude's preview. Swap in your own photos whenever you have them; real photos of your work build the most trust.
+The "Stone & Linen" design is photo-led. Ten slots use your own photos (below). The rest use free stock photos from Unsplash, listed in `src/photos.json` and credited below. The images load from Unsplash's servers, so they appear on the live site but not inside Claude's preview. Swap in your own photos whenever you have them; real photos of your work build the most trust.
 
-## Current stock photos (Unsplash License, free for commercial use, credit not required)
+## Your photos (in `src/assets/photos/`, used instead of stock)
+
+| Slot | Photo |
+| --- | --- |
+| `home-hero` | Sunset living room with ocean view (cropped wide; centered on the sun on phones) |
+| `home-about` | Folded towels with a cotton branch |
+| `service-standard`, `res-standard` | White bed with a flowering branch |
+| `service-recurring`, `res-recurring` | Sunlit white kitchen |
+| `service-deep`, `res-deep` | Pink tiled bathroom with a tub |
+| `service-moveout`, `res-moveout` | Empty apartment with window light on the floor |
+
+Use only photos you have the right to use on a business website. Photos saved from Pinterest or other people's accounts usually belong to someone else; ask for permission or replace them with your own or licensed stock.
+
+## Current stock photos for the remaining slots (Unsplash License, free for commercial use, credit not required)
 
 | Slot | Photo | Photographer |
 | --- | --- | --- |

@@ -93,7 +93,8 @@ section{border-bottom:1px solid var(--ink)}
 /* hero */
 .hero{position:relative;min-height:clamp(480px,72vh,680px);display:flex;align-items:flex-end;justify-content:center}
 .hero > .photo{position:absolute;inset:0}
-.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(30,28,25,.18) 0%,rgba(30,28,25,.28) 45%,rgba(30,28,25,.68) 100%);pointer-events:none}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(30,28,25,.06) 0%,rgba(30,28,25,.22) 45%,rgba(30,28,25,.66) 100%);pointer-events:none}
+.hero .photo img{object-position:68% 50%}
 .hero .hero-copy{position:relative;z-index:2;color:#fff;text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px;padding:0 24px 64px}
 .hero .hero-copy .link{color:#fff;margin-top:10px}
 .hero .photo .ph{top:18px;bottom:auto;text-align:right;right:22px;left:auto}
