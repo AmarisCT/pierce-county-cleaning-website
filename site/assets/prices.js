@@ -25,8 +25,31 @@ window.PCCS_PRICES = {
   }
 };
 
-// Estimate for a quote request. Pure function — tested in tests/estimate.test.js.
-// Returns null when the home is larger than the table covers (manual quote).
+// The functions below are shared: the website uses them for the live estimate, and
+// build.js copies them into apps-script/Code.gs so the emailed quote uses the same math.
+
+// Map a bedroom/bathroom choice to a price-table size. null = needs a custom quote.
+function pccsSizeId(beds, baths) {
+  beds = Number(beds); baths = Number(baths);
+  if (!(beds >= 0) || !(baths >= 1)) return null;
+  if (beds === 0 && baths <= 1) return "studio";
+  if (beds === 1 && baths <= 1) return "1-1";
+  if (beds === 2 && baths <= 1) return "2-1";
+  if (beds === 2 && baths <= 2) return "2-2";
+  if (beds === 3 && baths <= 2) return "3-2";
+  if (beds === 4 && baths <= 2.5) return "4-2.5";
+  if (beds <= 1 && baths <= 2) return "2-2";   // small home with an extra bathroom
+  if (beds === 3 && baths <= 2.5) return "4-2.5";
+  return null;
+}
+
+// Which price column a request uses. Weekly and monthly recurring are quoted by hand.
+function pccsServiceKey(service, frequency) {
+  if (service === "recurring") return frequency === "biweekly" ? "recurring" : null;
+  return service;
+}
+
+// Estimate for a quote request. Returns null when it needs a custom quote.
 function pccsEstimate(prices, sizeId, serviceId, addonIds) {
   const svc = prices.services[serviceId];
   if (!svc || !(sizeId in svc.prices)) return null;
@@ -34,4 +57,4 @@ function pccsEstimate(prices, sizeId, serviceId, addonIds) {
   const extras = (addonIds || []).reduce((s, k) => s + (prices.addons[k] ? prices.addons[k].price : 0), 0);
   return { base, extras, total: base + extras };
 }
-if (typeof module !== "undefined") module.exports = { pccsEstimate };
+if (typeof module !== "undefined") module.exports = { pccsEstimate, pccsSizeId, pccsServiceKey };

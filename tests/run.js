@@ -46,5 +46,14 @@ for (const js of ["config.js", "prices.js", "site.js", "quote.js"]) {
   check(`${js} parses`, () => new Function(fs.readFileSync(path.join(SITE, "assets", js), "utf8")));
 }
 
+// Quote & invoice email script
+require("./apps-script.test.js")(check);
+check("apps-script/Code.gs has the same prices as the website", () => {
+  const code = fs.readFileSync(path.join(ROOT, "apps-script", "Code.gs"), "utf8");
+  const m = code.match(/const PRICES = (\{[\s\S]*?\n\});/);
+  assert.ok(m, "PRICES block not found");
+  assert.deepStrictEqual(JSON.parse(m[1]), JSON.parse(JSON.stringify(P)));
+});
+
 console.log(failures ? `\n${failures} check(s) failed` : "\nAll checks passed");
 process.exit(failures ? 1 : 0);

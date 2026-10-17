@@ -149,7 +149,27 @@ function copyDir(from, to) {
   }
 }
 
+// apps-script/Code.gs = the email script template + the same prices and math the website uses.
+function buildAppsScript() {
+  const vm = require("vm");
+  const ctx = { window: {}, module: undefined };
+  vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(SRC, "assets", "prices.js"), "utf8") +
+    "\n;this.__shared = { pccsSizeId, pccsServiceKey, pccsEstimate };", ctx);
+  const shared = [
+    `const PRICES = ${JSON.stringify(ctx.window.PCCS_PRICES, null, 2)};`,
+    ctx.__shared.pccsSizeId.toString(),
+    ctx.__shared.pccsServiceKey.toString(),
+    ctx.__shared.pccsEstimate.toString()
+  ].join("\n\n");
+  const template = fs.readFileSync(path.join(SRC, "apps-script", "Code.template.gs"), "utf8");
+  if (!template.includes("/*__SHARED__*/")) throw new Error("Code.template.gs is missing the /*__SHARED__*/ marker");
+  fs.mkdirSync(path.join(__dirname, "apps-script"), { recursive: true });
+  fs.writeFileSync(path.join(__dirname, "apps-script", "Code.gs"), template.replace("/*__SHARED__*/", () => shared));
+}
+
 function build() {
+  buildAppsScript();
   fs.rmSync(OUT, { recursive: true, force: true });
   copyDir(path.join(SRC, "assets"), path.join(OUT, "assets"));
   const pages = fs.readdirSync(path.join(SRC, "pages")).filter(f => f.endsWith(".html")).sort();

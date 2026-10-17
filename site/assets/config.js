@@ -8,9 +8,9 @@ window.PCCS_CONFIG = {
   phone: "",            // e.g. "(253) 555-0142"
   email: "",            // e.g. "hello@piercecountycleaning.com"
 
-  // Where quote requests are sent. Leave empty until a form service is connected
-  // (Formspree, Basin, Jobber/Housecall Pro request form, etc.). While empty, the
-  // quote page still calculates an estimate and lets the customer copy their request.
+  // Your Google Apps Script web app URL (ends in /exec). See docs/quote-email-setup.md.
+  // When set, requests go to your Google Sheet and the customer is emailed their quote.
+  // While empty, the quote page still shows an estimate and lets the customer copy their request.
   quoteEndpoint: "",
 
   // Show "starting at" prices on the site. Prices below are DRAFT launch prices

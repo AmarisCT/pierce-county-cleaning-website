@@ -200,6 +200,8 @@ textarea{min-height:110px;resize:vertical;border:1px solid var(--ink);padding:12
 .estimate b{font:400 64px/1 var(--display);font-weight:400}
 .estimate .note{color:var(--on-dark-muted)}
 .result{border:1px solid var(--ink);padding:20px;background:var(--paper);display:grid;gap:12px}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.result p{margin:0}
 .result pre{white-space:pre-wrap;font:13px/1.55 ui-monospace,Menlo,monospace;margin:0;background:var(--stone);padding:12px;overflow-x:auto}
 
 /* footer */

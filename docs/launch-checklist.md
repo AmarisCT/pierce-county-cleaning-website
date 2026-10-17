@@ -10,7 +10,7 @@ Everything here needs the owner. Items are in the order they unblock launch.
 - [ ] Confirm the contact hours on `contact.html`
 - [ ] Write a short founding story on `about.html` (TODO marker in the file)
 - [ ] Attorney review of `privacy.html` and `terms.html` (re-clean, cancellation fee, damage, staff non-solicitation)
-- [ ] Choose a form service or booking tool and set `quoteEndpoint`
+- [ ] Set up free quote & invoice emails ([quote-email-setup.md](quote-email-setup.md)) and set `quoteEndpoint`
 - [ ] Confirm ownership of the domain (piercecountycleaning.com was a proposal, not confirmed)
 - [ ] Add the logo file to `src/assets/` and the header in `build.js`
 - [ ] Review the 15 stock photos on the live preview and swap any you don't like (see [photos.md](photos.md)); replace with your own job photos over time
