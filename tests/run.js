@@ -26,7 +26,10 @@ check("estimate: every service has every size", () => {
 });
 
 const pages = fs.readdirSync(SITE).filter(f => f.endsWith(".html"));
-check("site has 11 pages", () => assert.strictEqual(pages.length, 11));
+check("site has 12 pages (11 + 404)", () => assert.strictEqual(pages.length, 12));
+check("favicon, touch icon and link preview image exist", () => {
+  for (const f of ["favicon.svg", "apple-touch-icon.png", "og-image.jpg"]) assert.ok(fs.existsSync(path.join(SITE, "assets", f)), f);
+});
 for (const f of pages) {
   const html = fs.readFileSync(path.join(SITE, f), "utf8");
   check(`${f}: title and description`, () => {
@@ -39,7 +42,7 @@ for (const f of pages) {
   });
   check(`${f}: no unverified claims`, () => {
     const text = html.replace(/<!--[\s\S]*?-->/g, "").toLowerCase();
-    for (const bad of ["insured", "bonded", "5-star", "five-star", "testimonial", "certified"]) assert.ok(!text.includes(bad), `contains "${bad}"`);
+    for (const bad of ["insured", "bonded", "5-star", "five-star", "testimonial", "certified", "employee", "employed by", "draft", "[date"]) assert.ok(!text.includes(bad), `contains "${bad}"`);
   });
 }
 for (const js of ["config.js", "prices.js", "site.js", "quote.js"]) {

@@ -11,7 +11,7 @@ const path = require("path");
 const SRC = path.join(__dirname, "src");
 const OUT = path.join(__dirname, "site");
 const PHOTOS = path.join(SRC, "assets", "photos");
-const SITE_URL = process.env.SITE_URL || "https://piercecountycleaning.com"; // TODO(owner): set once the domain is confirmed
+const SITE_URL = (process.env.SITE_URL || "https://amarisct.github.io/pierce-county-cleaning-website").replace(/\/$/, ""); // change if you connect your own domain
 
 const NAV = [
   ["index.html", "Home"],
@@ -87,6 +87,7 @@ function layout(file, meta, body) {
 <html lang="en">
 <head>
 <meta charset="utf-8">
+${file === "404.html" ? `<base href="${SITE_URL}/">` : ""}
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${esc(meta.title)}</title>
 <meta name="description" content="${esc(meta.description)}">
@@ -94,6 +95,15 @@ function layout(file, meta, body) {
 <meta property="og:title" content="${esc(meta.title)}">
 <meta property="og:description" content="${esc(meta.description)}">
 <meta property="og:type" content="website">
+<meta property="og:url" content="${canonical}">
+<meta property="og:site_name" content="Pierce County Cleaning Services">
+<meta property="og:image" content="${SITE_URL}/assets/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+${meta.noindex ? '<meta name="robots" content="noindex">' : ""}
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#ECE8E2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
