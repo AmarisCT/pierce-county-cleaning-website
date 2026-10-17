@@ -6,12 +6,12 @@ window.PCCS_CONFIG = {
 
   // TODO(owner): add the business phone and email once they are set up.
   phone: "",            // e.g. "(253) 555-0142"
-  email: "",            // e.g. "hello@piercecountycleaning.com"
+  email: "piercecountycleaningservices@gmail.com",
 
   // Your Google Apps Script web app URL (ends in /exec). See docs/quote-email-setup.md.
   // When set, requests go to your Google Sheet and the customer is emailed their quote.
   // While empty, the quote page still shows an estimate and lets the customer copy their request.
-  quoteEndpoint: "",
+  quoteEndpoint: "https://script.google.com/macros/s/AKfycbyZgh6uU9Hn8dnoMO9tTp3iezrLWB8mkP4eO6p06H01-28RdBqTfuEqiIlkweo_ju0MTg/exec",
 
   // Show "starting at" prices on the site. Prices below are DRAFT launch prices
   // pending owner approval — see docs/pricing.md.
