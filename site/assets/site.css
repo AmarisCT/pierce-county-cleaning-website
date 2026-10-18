@@ -163,6 +163,9 @@ th,td{padding:16px 14px;text-align:left;border-bottom:1px solid var(--soft-rule)
 th{font:500 10px/1.4 var(--sans);letter-spacing:.2em;text-transform:uppercase}
 td.num,th.num{text-align:right}
 tr:last-child td{border-bottom:0}
+.table-wrap.compact{max-width:440px;margin-inline:auto}
+.table-wrap.compact table{min-width:0}
+.table-wrap.compact th,.table-wrap.compact td{padding:12px 10px}
 
 /* check lists */
 .check{list-style:none;margin:0;padding:0;display:grid;gap:8px;text-align:left}
@@ -213,5 +216,9 @@ textarea{min-height:110px;resize:vertical;border:1px solid var(--ink);padding:12
 .site-foot ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px 26px}
 .site-foot a,.site-foot li,.site-foot span{font:400 10px/2 var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--muted);text-decoration:none}
 .site-foot a:hover{color:var(--ink)}
+.site-foot .foot-nav{justify-content:flex-start;gap:22px 72px;padding-bottom:26px;margin-bottom:26px;border-bottom:1px solid var(--soft-rule)}
+.foot-nav > div{display:flex;flex-direction:column;gap:4px}
+.site-foot .foot-nav .caps{color:var(--ink)}
 
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}

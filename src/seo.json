@@ -1,0 +1,15 @@
+{
+  "_about": "Search settings used by build.js. Fill these in as you set up each account, then run `node build.js` and publish. See docs/seo.md.",
+
+  "_googleSiteVerification": "Google Search Console > Add property > URL prefix > HTML tag. Paste only the content=\"...\" value.",
+  "googleSiteVerification": "",
+
+  "_bingSiteVerification": "Bing Webmaster Tools > Add site > HTML Meta Tag (msvalidate.01). Paste only the content value. Skip if you import from Search Console.",
+  "bingSiteVerification": "",
+
+  "_addressLocality": "The city shown on your Google Business Profile (address hidden). Leave empty until the profile is set up so the two always match.",
+  "addressLocality": "",
+
+  "_sameAs": "Full links to your public profiles once they exist: Google Business Profile share link, Yelp, Nextdoor, Facebook, Instagram.",
+  "sameAs": []
+}
