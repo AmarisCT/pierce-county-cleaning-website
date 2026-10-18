@@ -62,11 +62,14 @@ While `quoteEndpoint` is empty, nothing is sent: the customer sees their request
 
 ## Publishing
 
-Nothing is published automatically. When the owner approves:
+The site is live at **https://amarisct.github.io/pierce-county-cleaning-website/**, served by GitHub Pages from the `gh-pages` branch (Settings → Pages → Source: Deploy from a branch → `gh-pages` / root).
 
-1. Confirm the domain and run `SITE_URL=https://yourdomain.com node build.js`.
-2. Host the `site/` folder on GitHub Pages, Netlify or Cloudflare Pages. A manual GitHub Pages workflow is included at `.github/workflows/deploy.yml` (run it from the Actions tab; Pages must be enabled for the repo, which requires a public repo or a paid GitHub plan).
-3. Point the domain's DNS at the host.
+Changes pushed to `main` do **not** go live on their own. To publish them:
+
+1. Go to the repo's **Actions** tab → **Deploy site (manual)** → **Run workflow**.
+2. It builds the site, runs the checks, and copies `site/` to the `gh-pages` branch. GitHub updates the live site a minute or two later.
+
+To move to your own domain later: run the workflow with your domain as the site URL, add the domain under Settings → Pages → Custom domain, and point the domain's DNS at GitHub Pages.
 
 ## Ground rules for site content
 
