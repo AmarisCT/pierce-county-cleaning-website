@@ -5,7 +5,7 @@ Residential and small-business cleaning in Tacoma, Puyallup, Lakewood, Spanaway 
 
 **Design:** "Stone & Linen" — warm stone background, condensed serif capitals (Instrument Serif), Jost for body text, thin ink rules between full-width sections, and photo-led panels. Photos go in `src/assets/photos/`; see [docs/photos.md](docs/photos.md).
 
-> **Status: draft, not published.** Prices, policies and service areas need owner approval before launch. See [docs/launch-checklist.md](docs/launch-checklist.md).
+> **Status: published on GitHub Pages.** See the live site at https://amarisct.github.io/pierce-county-cleaning-website/. Track outstanding business setup and launch follow-ups in [docs/launch-checklist.md](docs/launch-checklist.md); publication does not mark those items complete.
 
 ## What's here
 
