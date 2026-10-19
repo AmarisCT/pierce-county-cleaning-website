@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+<meta charset="utf-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Request a Cleaning Quote | Pierce County Cleaning Services</title>
+<meta name="description" content="Get an instant estimate for house cleaning in Tacoma and Pierce County, then send your request for a confirmed price.">
+<link rel="canonical" href="https://amarisct.github.io/pierce-county-cleaning-website/quote.html">
+<meta property="og:title" content="Request a Cleaning Quote | Pierce County Cleaning Services">
+<meta property="og:description" content="Get an instant estimate for house cleaning in Tacoma and Pierce County, then send your request for a confirmed price.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://amarisct.github.io/pierce-county-cleaning-website/quote.html">
+<meta property="og:site_name" content="Pierce County Cleaning Services">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://amarisct.github.io/pierce-county-cleaning-website/assets/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="robots" content="index, follow, max-image-preview:large">
+
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="theme-color" content="#ECE8E2">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Jost:wght@300;400;500&display=swap">
+<link rel="stylesheet" href="assets/site.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://amarisct.github.io/pierce-county-cleaning-website/"},{"@type":"ListItem","position":2,"name":"Request a Cleaning Quote","item":"https://amarisct.github.io/pierce-county-cleaning-website/quote.html"}]}]}</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="index.html"><b>Pierce County Cleaning</b><span>Clean Spaces, Clear Minds.</span></a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">
+      <svg width="20" height="12" viewBox="0 0 20 12" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M0 1h20M0 6h20M0 11h20"/></svg>
+    </button>
+    <nav class="site-nav" id="site-nav" aria-label="Main"><ul><li><a href="index.html">Home</a></li><li><a href="residential.html">Residential</a></li><li><a href="commercial.html">Commercial</a></li><li><a href="services.html">Services & Prices</a></li><li><a href="about.html">About</a></li><li><a href="service-areas.html">Areas</a></li><li><a href="faq.html">FAQ</a></li><li><a href="contact.html">Contact</a></li><li><a class="nav-cta" href="quote.html" aria-current="page">Request a quote</a></li></ul></nav>
+  </div>
+</header>
+<main id="main">
+<section>
+  <div class="wrap page-head">
+    <span class="caps muted">Request a quote</span>
+    <h1>Your price</h1>
+    <p class="lead">Fill in your home's details to see an estimate. We confirm the final price and your appointment before anything is charged.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap pad quote-grid">
+    <form class="quote" id="quote-form" novalidate>
+      <fieldset>
+        <legend>The service</legend>
+        <div class="row">
+          <label for="q-type">Property type
+            <select id="q-type" name="propertyType">
+              <option value="house">House</option><option value="apartment">Apartment</option><option value="condo">Condo / townhome</option><option value="commercial">Office or commercial space</option><option value="rental">Short-term rental</option>
+            </select></label>
+          <label for="q-service">Service
+            <select id="q-service" name="service">
+              <option value="standard">Standard clean</option><option value="deep">Deep clean</option><option value="moveout">Move-in / move-out</option><option value="recurring">Recurring service</option><option value="commercial">Commercial walkthrough</option>
+            </select></label>
+          <label for="q-frequency">Frequency
+            <select id="q-frequency" name="frequency">
+              <option value="once">One-time</option><option value="weekly">Weekly</option><option value="biweekly" selected>Biweekly</option><option value="monthly">Monthly</option>
+            </select></label>
+        </div>
+      </fieldset>
+
+      <fieldset id="home-fields">
+        <legend>Your home</legend>
+        <div class="row">
+          <label for="q-beds">Bedrooms
+            <select id="q-beds" name="bedrooms"><option value="0">Studio</option><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option><option value="5">5+</option></select></label>
+          <label for="q-baths">Bathrooms
+            <select id="q-baths" name="bathrooms"><option value="1" selected>1</option><option value="1.5">1.5</option><option value="2">2</option><option value="2.5">2.5</option><option value="3">3+</option></select></label>
+          <label for="q-sqft">Square feet <span class="opt">(approx.)</span><input id="q-sqft" name="sqft" type="number" min="200" step="50" inputmode="numeric" placeholder="e.g. 1,200"></label>
+        </div>
+        <div><p class="caps" style="margin-bottom:10px">Add-ons</p><div class="chips" id="q-addons"></div></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>When &amp; where</legend>
+        <div class="row">
+          <label for="q-date">Preferred date<input id="q-date" name="date" type="date"></label>
+          <label for="q-zip">ZIP code<input id="q-zip" name="zip" inputmode="numeric" maxlength="5" placeholder="98402" required></label>
+        </div>
+        <label for="q-address">Service address<input id="q-address" name="address" autocomplete="street-address" required></label>
+        <label for="q-notes">Anything we should know? <span class="opt">(pets, parking, problem areas)</span><textarea id="q-notes" name="notes"></textarea></label>
+        <p class="note">Please don't include door or alarm codes here. We collect access details securely once your booking is confirmed.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Your details</legend>
+        <div class="row">
+          <label for="q-name">Name<input id="q-name" name="name" autocomplete="name" required></label>
+          <label for="q-phone">Phone<input id="q-phone" name="phone" type="tel" autocomplete="tel" required></label>
+          <label for="q-email">Email<input id="q-email" name="email" type="email" autocomplete="email" required></label>
+        </div>
+        <p class="note">We use these details only to answer your request. See our <a href="privacy.html">privacy policy</a>.</p>
+      </fieldset>
+
+      <div class="hp" aria-hidden="true"><label for="q-website">Leave this empty<input id="q-website" name="website" tabindex="-1" autocomplete="off"></label></div>
+      <p class="note" id="q-error" role="alert" hidden></p>
+      <div><button class="btn" type="submit" id="q-submit">Send my request</button></div>
+    </form>
+
+    <aside class="sticky" aria-live="polite">
+      <div class="estimate" id="q-estimate">
+        <span class="caps">Estimated price</span>
+        <b id="q-total">—</b>
+        <span class="note" id="q-detail"></span>
+      </div>
+      <p class="note">Estimates assume typical condition. When you send your request, we email you a copy of your quote and confirm the final price before booking.</p>
+      <div class="result" id="q-result" hidden></div>
+    </aside>
+  </div>
+</section>
+</main>
+<footer>
+<div class="site-foot">
+  <div class="wrap foot-nav">
+    <div><span class="caps">Services</span><ul><li><a href="residential.html">House cleaning</a></li><li><a href="deep-cleaning.html">Deep cleaning</a></li><li><a href="move-out-cleaning.html">Move-out cleaning</a></li><li><a href="commercial.html">Office cleaning</a></li><li><a href="services.html">Prices</a></li></ul></div>
+    <div><span class="caps">House cleaning in</span><ul><li><a href="house-cleaning-tacoma.html">Tacoma</a></li><li><a href="house-cleaning-puyallup.html">Puyallup</a></li><li><a href="house-cleaning-lakewood.html">Lakewood</a></li><li><a href="house-cleaning-spanaway.html">Spanaway</a></li><li><a href="house-cleaning-university-place.html">University Place</a></li><li><a href="house-cleaning-fife.html">Fife</a></li></ul></div>
+  </div>
+  <div class="wrap">
+    <ul>
+      <li>&copy; <span data-year>2026</span> Pierce County Cleaning Services LLC</li>
+      <li data-contact="phone"><span data-value></span></li>
+      <li data-contact="email"><span data-value></span></li>
+    </ul>
+    <ul>
+      <li><a href="quote.html">Quote</a></li>
+      <li><a href="reviews.html">Reviews</a></li>
+      <li><a href="privacy.html">Privacy</a></li>
+      <li><a href="terms.html">Terms</a></li>
+    </ul>
+  </div>
+</div>
+</footer>
+<script src="assets/config.js"></script>
+<script src="assets/prices.js"></script>
+<script src="assets/site.js"></script>
+<script src="assets/quote.js"></script>
+</body>
+</html>
