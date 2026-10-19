@@ -10,6 +10,8 @@
  *  - Each request is logged as a row in the "Quotes" sheet.
  *  - The customer is emailed a quote with the service, add-ons and total; you get an alert.
  *  - From the sheet's PCCS menu you can send an invoice for a finished job.
+ *  - The website's review form posts here too. Reviews land in the "Reviews" tab, hidden until
+ *    you set "Show on website" to Yes. The website reads the shown ones back (GET ?reviews=1).
  */
 
 // ===== Prices and shared math (copied from src/assets/prices.js) =====
@@ -32,8 +34,23 @@ const LABELS = {
   frequency: { once: "One-time", weekly: "Weekly", biweekly: "Every two weeks", monthly: "Monthly" }
 };
 
+// Reviews tab. "Show on website" starts at No for reviews sent through the website.
+const REVIEWS_SHEET = "Reviews";
+const REVIEW_COLS = ["Date", "Show on website", "Rating", "Review", "Name shown", "City", "Service", "Source", "Link", "Full name", "Email", "Notes"];
+const REVIEW_SOURCES = ["Website", "Google", "Other"];
+const REVIEWS_CACHE_KEY = "reviews:v1";
+
 // ===== Web app =====
-function doGet() {
+function doGet(e) {
+  const params = (e && e.parameter) || {};
+  if (params.reviews) {
+    try {
+      return json_(publishedReviews_());
+    } catch (err) {
+      console.error(err);
+      return json_({ ok: false, error: "server_error", reviews: [] });
+    }
+  }
   return json_({ ok: true, service: "Pierce County Cleaning quote form" });
 }
 
@@ -45,7 +62,7 @@ function doPost(e) {
     return json_({ ok: false, error: "bad_request" });
   }
   try {
-    return json_(handleQuote_(data));
+    return json_(data && data.type === "review" ? handleReview_(data) : handleQuote_(data));
   } catch (err) {
     console.error(err);
     return json_({ ok: false, error: "server_error" });
@@ -108,6 +125,127 @@ function handleQuote_(data) {
     console.error("Owner alert failed", err);
   }
   return { ok: true, quoteNumber: quoteNumber, emailed: emailed, priced: quote.priced, total: quote.priced ? quote.total : null };
+}
+
+// ===== Reviews =====
+function handleReview_(data) {
+  if (data.website) return { ok: true };
+  if (!(Number(data.elapsed) >= 3000)) return { ok: true };
+
+  const checked = validateReview_(data);
+  if (checked.fields.length) return { ok: false, error: "invalid", fields: checked.fields };
+  const rv = checked.review;
+
+  const cache = CacheService.getScriptCache();
+  const throttleKey = "review:" + rv.email;
+  if (cache.get(throttleKey)) return { ok: false, error: "too_soon" };
+
+  const props = PropertiesService.getScriptProperties();
+  const now = new Date();
+  const dayKey = "reviews:" + fmtDate_(now, "yyyyMMdd");
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    if (Number(props.getProperty(dayKey) || 0) >= (CONFIG.maxReviewsPerDay || 20)) return { ok: false, error: "busy" };
+    appendRecord_(reviewsSheet_(), {
+      "Date": now, "Show on website": "No", "Rating": rv.rating, "Review": rv.text,
+      "Name shown": shortName_(rv.name), "City": rv.city, "Service": rv.service ? LABELS.service[rv.service] : "",
+      "Source": "Website", "Full name": rv.name, "Email": rv.email
+    });
+    props.setProperty(dayKey, String(Number(props.getProperty(dayKey) || 0) + 1));
+  } finally {
+    lock.releaseLock();
+  }
+  cache.put(throttleKey, "1", 600);
+
+  try {
+    const alert = renderReviewAlert_(rv);
+    MailApp.sendEmail({ to: CONFIG.notifyEmail || ownerEmail_(), subject: alert.subject, body: alert.text, htmlBody: alert.html, name: CONFIG.shortName + " website", replyTo: rv.email });
+  } catch (err) {
+    console.error("Review alert failed", err);
+  }
+  return { ok: true };
+}
+
+function validateReview_(d) {
+  const fields = [];
+  const str = function (v, max) { return String(v == null ? "" : v).replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, max); };
+  const looksLikeLink = function (s) { return /https?:|www\.|<|>|\[url/i.test(s); };
+  const review = {
+    name: str(d.name, 80),
+    email: str(d.email, 120).toLowerCase(),
+    rating: Number(d.rating),
+    text: String(d.text == null ? "" : d.text).replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, "").replace(/\n{3,}/g, "\n\n").trim().slice(0, 1500),
+    city: str(d.city, 40),
+    service: str(d.service, 20)
+  };
+  if (review.name.length < 2 || looksLikeLink(review.name)) fields.push("name");
+  if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(review.email)) fields.push("email");
+  if ([1, 2, 3, 4, 5].indexOf(review.rating) < 0) fields.push("rating");
+  if (review.text.length < 10 || /https?:|www\./i.test(review.text)) fields.push("text");
+  if (!(d.consent === true || d.consent === "on" || d.consent === "yes")) fields.push("consent");
+  if (looksLikeLink(review.city)) review.city = "";
+  if (!LABELS.service[review.service]) review.service = "";
+  return { review: review, fields: fields };
+}
+
+// Reviews marked "Show on website: Yes", newest first, without names in full or emails.
+function publishedReviews_() {
+  const cache = CacheService.getScriptCache();
+  const hit = cache.get(REVIEWS_CACHE_KEY);
+  if (hit) return JSON.parse(hit);
+  const out = { ok: true, reviews: [], count: 0, average: null };
+  const sheet = SpreadsheetApp.openById(sheetId_()).getSheetByName(REVIEWS_SHEET);
+  if (sheet && sheet.getLastRow() > 1) {
+    const map = headerMap_(sheet);
+    const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+    rows.forEach(function (r) {
+      const get = function (c) { return map[c] ? r[map[c] - 1] : ""; };
+      if (String(get("Show on website")).trim().toLowerCase() !== "yes") return;
+      const rating = Math.round(Number(get("Rating")));
+      const text = String(get("Review") || "").trim();
+      if (!(rating >= 1 && rating <= 5) || !text) return;
+      const d = get("Date");
+      const isDate = Object.prototype.toString.call(d) === "[object Date]" && !isNaN(d.getTime());
+      const link = String(get("Link") || "").trim();
+      const source = String(get("Source") || "").trim();
+      out.reviews.push({
+        rating: rating,
+        text: text.slice(0, 1500),
+        name: String(get("Name shown") || "").trim() || shortName_(String(get("Full name") || "")),
+        city: String(get("City") || "").trim().slice(0, 40),
+        service: String(get("Service") || "").trim().slice(0, 40),
+        source: REVIEW_SOURCES.indexOf(source) >= 0 ? source : "Website",
+        link: /^https:\/\//i.test(link) ? link : "",
+        date: isDate ? fmtDate_(d, "yyyy-MM-dd") : ""
+      });
+    });
+    out.reviews.sort(function (a, b) { return b.date.localeCompare(a.date); });
+    out.reviews = out.reviews.slice(0, 100);
+    out.count = out.reviews.length;
+    if (out.count) out.average = Math.round(out.reviews.reduce(function (s, x) { return s + x.rating; }, 0) / out.count * 10) / 10;
+  }
+  cache.put(REVIEWS_CACHE_KEY, JSON.stringify(out), 300);
+  return out;
+}
+
+// "Jane Rivera" -> "Jane R."
+function shortName_(full) {
+  const parts = String(full || "").trim().split(/\s+/).filter(String);
+  if (!parts.length) return "";
+  return parts[0] + (parts.length > 1 ? " " + parts[parts.length - 1].charAt(0).toUpperCase() + "." : "");
+}
+
+function reviewLink_() {
+  if (CONFIG.reviewUrl) return String(CONFIG.reviewUrl);
+  return CONFIG.website ? String(CONFIG.website).replace(/\/?$/, "/") + "reviews.html#leave" : "";
+}
+
+// Clear the website's copy of the reviews as soon as the Reviews tab is edited.
+function onEdit(e) {
+  try {
+    if (e && e.range && e.range.getSheet().getName() === REVIEWS_SHEET) CacheService.getScriptCache().remove(REVIEWS_CACHE_KEY);
+  } catch (err) { /* ignore */ }
 }
 
 // ===== Validation =====
@@ -236,14 +374,18 @@ function renderInvoiceEmail_(rec, invoiceNumber, lines, total, issued, serviceDa
   if (rec["Quote #"]) meta.push(["Quote", rec["Quote #"]]);
   if (serviceDate) meta.push(["Service date", serviceDate]);
   const who = [rec["Name"], rec["Address"] + (rec["ZIP"] ? " " + rec["ZIP"] : ""), rec["Email"], rec["Phone"]];
+  const reviewUrl = reviewLink_();
   const body = linesTable_(lines, total, "Amount due") +
     block_("How to pay", p_(esc_(CONFIG.paymentInstructions))) +
+    (reviewUrl ? block_("How did we do?", p_("A short review helps neighbors find us and tells us what to keep doing. " +
+      '<a href="' + esc_(reviewUrl) + '" style="color:' + C_.ink + '">Leave a review</a>')) : "") +
     p_("Thank you for choosing " + esc_(CONFIG.businessName) + ". Questions about this invoice? Reply to this email" + (CONFIG.phone ? " or call " + esc_(CONFIG.phone) : "") + ".", true);
   const text = [
     CONFIG.businessName, "", "INVOICE " + invoiceNumber, "Issued " + fmtDate_(issued, "MMMM d, yyyy") + " · " + due, "",
     "Bill to: " + who.filter(String).join(", "), ""
   ].concat(lines.map(function (l) { return "  " + l.label + ": " + money_(l.amount); }))
-    .concat([(CONFIG.showSalesTaxLine ? "  WA sales tax: $0.00\n" : "") + "  AMOUNT DUE: " + money_(total), "", "How to pay: " + CONFIG.paymentInstructions]).join("\n");
+    .concat([(CONFIG.showSalesTaxLine ? "  WA sales tax: $0.00\n" : "") + "  AMOUNT DUE: " + money_(total), "", "How to pay: " + CONFIG.paymentInstructions])
+    .concat(reviewUrl ? ["", "How did we do? Leave a review: " + reviewUrl] : []).join("\n");
   return { subject: "Invoice " + invoiceNumber + " — " + money_(total) + " — " + CONFIG.shortName, html: shell_("Invoice", meta, who, body, "Bill to"), text: text };
 }
 
@@ -263,6 +405,23 @@ function renderOwnerAlert_(req, quote, quoteNumber, emailed) {
     '<p style="color:' + C_.muted + '">Reply to this email to answer the customer directly.</p></div>';
   const text = rows.map(function (r) { return r[0] + ": " + r[1]; }).join("\n") + (sheetUrl ? "\n\nSheet: " + sheetUrl : "");
   return { subject: "New quote request " + quoteNumber + " — " + req.name + (quote.priced ? " — " + money_(quote.total) : ""), html: html, text: text };
+}
+
+function renderReviewAlert_(rv) {
+  const stars = "★★★★★".slice(0, rv.rating) + "☆☆☆☆☆".slice(0, 5 - rv.rating);
+  const rows = [
+    ["Rating", stars + " (" + rv.rating + " of 5)"], ["Review", rv.text], ["Shown as", shortName_(rv.name) + (rv.city ? ", " + rv.city : "")],
+    ["Name", rv.name], ["Email", rv.email], ["Service", rv.service ? LABELS.service[rv.service] : "—"]
+  ];
+  let sheetUrl = "";
+  try { sheetUrl = SpreadsheetApp.openById(sheetId_()).getUrl(); } catch (e) { /* ignore */ }
+  const how = "To post it on the website, open the Reviews tab and set Show on website to Yes. Post every genuine customer review, including critical ones. Hide only spam, people who weren't customers, or reviews with private details.";
+  const html = '<div style="font-family:' + SANS_ + ';font-size:14px;color:' + C_.ink + '">' +
+    '<p style="font-family:' + SERIF_ + ';font-size:20px;margin:0 0 12px">New review to check</p>' + detailRows_(rows) +
+    '<p style="color:' + C_.body + '">' + esc_(how) + "</p>" +
+    (sheetUrl ? '<p><a href="' + esc_(sheetUrl) + '" style="color:' + C_.ink + '">Open the sheet</a></p>' : "") + "</div>";
+  const text = rows.map(function (r) { return r[0] + ": " + r[1]; }).join("\n") + "\n\n" + how + (sheetUrl ? "\n\nSheet: " + sheetUrl : "");
+  return { subject: "New review to check — " + rv.rating + " of 5 from " + shortName_(rv.name), html: html, text: text };
 }
 
 // --- email building blocks (table layout + inline styles for email clients) ---
@@ -356,9 +515,11 @@ function setup() {
   MONEY_COLS.forEach(function (c) { sheet.getRange(2, COLS.indexOf(c) + 1, rows, 1).setNumberFormat("$#,##0.00"); });
   sheet.getRange(2, COLS.indexOf("Received") + 1, rows, 1).setNumberFormat("yyyy-mm-dd h:mm am/pm");
   sheet.hideColumns(COLS.indexOf("Data (do not edit)") + 1);
+  reviewsSheet_(ss);
   const missing = [];
   if (!CONFIG.phone) missing.push("phone");
   if (!CONFIG.paymentInstructions) missing.push("paymentInstructions (needed for invoices)");
+  if (!CONFIG.website) missing.push("website (adds the review link to invoices)");
   SpreadsheetApp.getUi().alert("Sheet is ready.\n\nNext: Deploy → New deployment → Web app (Execute as: Me, Who has access: Anyone), then put the web app URL in the website's config.js." +
     (missing.length ? "\n\nStill empty in Config.gs: " + missing.join(", ") + "." : ""));
 }
@@ -428,6 +589,26 @@ function quotesSheet_() {
   const ss = SpreadsheetApp.openById(sheetId_());
   const sheet = ss.getSheetByName(SHEET_NAME);
   if (!sheet) throw new Error("Run setup first: the Quotes sheet is missing.");
+  return sheet;
+}
+
+// The Reviews tab, created with its headers and dropdowns the first time it's needed.
+function reviewsSheet_(ss) {
+  ss = ss || SpreadsheetApp.openById(sheetId_());
+  let sheet = ss.getSheetByName(REVIEWS_SHEET);
+  if (!sheet) sheet = ss.insertSheet(REVIEWS_SHEET);
+  const existing = sheet.getLastColumn() ? sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0] : [];
+  if (!existing.filter(String).length) {
+    sheet.getRange(1, 1, 1, REVIEW_COLS.length).setValues([REVIEW_COLS]);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, REVIEW_COLS.length).setFontWeight("bold").setBackground(C_.stone);
+    const rows = Math.max(sheet.getMaxRows() - 1, 1);
+    const list = function (values) { return SpreadsheetApp.newDataValidation().requireValueInList(values, true).setAllowInvalid(true).build(); };
+    sheet.getRange(2, REVIEW_COLS.indexOf("Show on website") + 1, rows, 1).setDataValidation(list(["Yes", "No"]));
+    sheet.getRange(2, REVIEW_COLS.indexOf("Rating") + 1, rows, 1).setDataValidation(list(["5", "4", "3", "2", "1"]));
+    sheet.getRange(2, REVIEW_COLS.indexOf("Source") + 1, rows, 1).setDataValidation(list(REVIEW_SOURCES));
+    sheet.getRange(2, REVIEW_COLS.indexOf("Date") + 1, rows, 1).setNumberFormat("yyyy-mm-dd");
+  }
   return sheet;
 }
 

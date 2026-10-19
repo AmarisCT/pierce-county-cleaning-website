@@ -28,6 +28,8 @@ Home · Residential · Commercial · Services & Pricing · Service Areas · Abou
 
 Search landing pages: Deep Cleaning · Move-Out Cleaning · House Cleaning in Tacoma, Puyallup, Lakewood, Spanaway, University Place and Fife. How search is set up, and the settings to fill in, are in [`docs/seo.md`](docs/seo.md).
 
+Reviews (`reviews.html`): customers leave reviews on the site; you approve them in the sheet's Reviews tab. See [`docs/reviews.md`](docs/reviews.md).
+
 ## Making changes
 
 You need [Node.js](https://nodejs.org) 18 or newer.

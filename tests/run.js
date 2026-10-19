@@ -123,7 +123,20 @@ check("every page links to all six city pages (footer)", () => {
   for (const f of pages) for (const c of cityPages) assert.ok(read(f).includes(`href="${c}"`), `${f} -> ${c}`);
 });
 
-for (const js of ["config.js", "prices.js", "site.js", "quote.js"]) {
+check("no reviews are written into the pages: they only come from the Reviews tab", () => {
+  for (const f of pages) {
+    const html = read(f);
+    for (const m of html.matchAll(/<div class="reviews" data-reviews[^>]*>([\s\S]*?)<\/div>/g)) assert.strictEqual(m[1].trim(), "", f);
+    assert.ok(!/class="review"/.test(html), `${f} has a review written into the page`);
+  }
+});
+check("reviews page has the form and is kept out of search results", () => {
+  const html = read("reviews.html");
+  assert.ok(html.includes('id="review-form"') && html.includes('name="consent"'));
+  assert.ok(html.includes('content="noindex"'));
+});
+
+for (const js of ["config.js", "prices.js", "site.js", "quote.js", "reviews.js"]) {
   check(`${js} parses`, () => new Function(fs.readFileSync(path.join(SITE, "assets", js), "utf8")));
 }
 

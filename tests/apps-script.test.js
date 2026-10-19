@@ -1,6 +1,6 @@
 // Tests for the quote & invoice email script (apps-script/Code.gs), using stand-in Google services.
 const assert = require("assert");
-const { createEnv, sampleRequest } = require("./apps-script-harness");
+const { createEnv, sampleRequest, sampleReview } = require("./apps-script-harness");
 
 module.exports = function run(check) {
   check("quote: valid request is logged and emailed with add-ons and total", () => {
@@ -181,5 +181,103 @@ module.exports = function run(check) {
   check("web app GET answers", () => {
     const env = createEnv();
     assert.strictEqual(JSON.parse(env.api.doGet().content).ok, true);
+  });
+
+  // ----- reviews -----
+  check("reviews: setup creates the Reviews tab", () => {
+    const env = createEnv();
+    assert.ok(env.sheets.Reviews, "Reviews tab missing");
+    assert.strictEqual(JSON.stringify(env.sheets.Reviews.data[0]), JSON.stringify(env.api.REVIEW_COLS));
+  });
+
+  check("reviews: a website review is saved hidden, and only the owner is emailed", () => {
+    const env = createEnv();
+    const res = env.post(sampleReview());
+    assert.strictEqual(res.ok, true);
+    const tab = env.sheets.Reviews;
+    assert.strictEqual(tab.data.length, 2);
+    const row = Object.fromEntries(tab.data[0].map((h, i) => [h, tab.data[1][i]]));
+    assert.strictEqual(row["Show on website"], "No");
+    assert.strictEqual(row["Rating"], 5);
+    assert.strictEqual(row["Name shown"], "Jane R.");
+    assert.strictEqual(row["Source"], "Website");
+    assert.strictEqual(row["Service"], "Deep clean");
+    assert.strictEqual(env.sheet.data.length, 1, "no row in Quotes");
+    assert.strictEqual(env.mail.length, 1);
+    assert.strictEqual(env.mail[0].to, "owner@example.com");
+    assert.match(env.mail[0].subject, /New review to check — 5 of 5 from Jane R\./);
+    assert.ok(env.mail[0].htmlBody.includes("including critical ones"));
+  });
+
+  check("reviews: hidden reviews are not published", () => {
+    const env = createEnv();
+    env.post(sampleReview());
+    const res = env.get({ reviews: "1" });
+    assert.strictEqual(res.ok, true);
+    assert.deepStrictEqual(res.reviews, []);
+    assert.strictEqual(res.average, null);
+  });
+
+  check("reviews: shown reviews are published newest first, without emails or full names", () => {
+    const env = createEnv();
+    env.addReview({ "Date": new Date("2026-11-02T18:00:00Z"), "Show on website": "Yes", "Rating": 4, "Review": "Good move-out clean, landlord was happy.",
+      "Full name": "Sam Lee", "Email": "sam@example.com", "City": "Lakewood", "Source": "Website" });
+    env.addReview({ "Date": new Date("2026-11-20T18:00:00Z"), "Show on website": "Yes", "Rating": 5, "Review": "Thorough and on time.",
+      "Name shown": "Maria G.", "Source": "Google", "Link": "https://maps.google.com/review-link" });
+    env.addReview({ "Date": new Date("2026-11-25T18:00:00Z"), "Show on website": "No", "Rating": 1, "Review": "Spam spam spam" });
+    const res = env.get({ reviews: "1" });
+    assert.strictEqual(res.count, 2);
+    assert.strictEqual(res.average, 4.5);
+    assert.deepStrictEqual(res.reviews.map(r => r.name), ["Maria G.", "Sam L."]);
+    assert.strictEqual(res.reviews[0].source, "Google");
+    assert.strictEqual(res.reviews[0].link, "https://maps.google.com/review-link");
+    assert.strictEqual(res.reviews[1].date, "2026-11-02");
+    const raw = JSON.stringify(res);
+    assert.ok(!raw.includes("sam@example.com") && !raw.includes("Sam Lee"), "private details leaked");
+  });
+
+  check("reviews: editing the Reviews tab refreshes the website's copy", () => {
+    const env = createEnv();
+    assert.strictEqual(env.get({ reviews: "1" }).count, 0);
+    env.addReview({ "Date": new Date(), "Show on website": "Yes", "Rating": 5, "Review": "Lovely work, thank you!", "Name shown": "Ann P." });
+    assert.strictEqual(env.get({ reviews: "1" }).count, 0, "cached copy until an edit");
+    env.api.onEdit({ range: env.sheets.Reviews.getRange(2, 2) });
+    assert.strictEqual(env.get({ reviews: "1" }).count, 1);
+  });
+
+  check("reviews: invalid rating, missing consent and links are rejected", () => {
+    const env = createEnv();
+    const res = env.post(sampleReview({ rating: "9", consent: false, text: "great, visit www.spam.example" }));
+    assert.strictEqual(res.ok, false);
+    assert.deepStrictEqual(res.fields.sort(), ["consent", "rating", "text"]);
+    assert.strictEqual(env.sheets.Reviews.data.length, 1);
+    assert.strictEqual(env.mail.length, 0);
+  });
+
+  check("reviews: spam traps and repeat sends", () => {
+    const env = createEnv();
+    env.post(sampleReview({ website: "http://spam.example" }));
+    env.post(sampleReview({ elapsed: 500 }));
+    assert.strictEqual(env.sheets.Reviews.data.length, 1);
+    env.post(sampleReview());
+    assert.strictEqual(env.post(sampleReview()).error, "too_soon");
+    assert.strictEqual(env.sheets.Reviews.data.length, 2);
+  });
+
+  check("reviews: invoices link to the review page when the website is set", () => {
+    const env = createEnv({ paymentInstructions: "Cash or check.", website: "https://example.github.io/site" });
+    env.post(sampleRequest());
+    env.mail.length = 0;
+    env.api.sendInvoiceForSelectedRow();
+    assert.ok(env.mail[0].htmlBody.includes("https://example.github.io/site/reviews.html#leave"));
+    assert.ok(env.mail[0].body.includes("Leave a review: https://example.github.io/site/reviews.html#leave"));
+  });
+
+  check("reviews: no review link in invoices until the website is set", () => {
+    const env = createEnv({ paymentInstructions: "Cash or check." });
+    env.post(sampleRequest());
+    env.mail.length = 0;
+    env.api.sendInvoiceForSelectedRow();
+    assert.ok(!env.mail[0].htmlBody.includes("How did we do"));
   });
 };

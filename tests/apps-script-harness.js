@@ -40,6 +40,7 @@ class FakeRange {
   setValues(v) { v.forEach((line, r) => line.forEach((val, c) => this.sheet.set(this.row + r, this.col + c, val))); return this; }
   setValue(v) { this.sheet.set(this.row, this.col, v); return this; }
   getRow() { return this.row; }
+  getSheet() { return this.sheet; }
   // formatting calls are accepted and ignored
   setFontWeight() { return this; } setBackground() { return this; } setDataValidation() { return this; } setNumberFormat() { return this; }
 }
@@ -63,9 +64,12 @@ function createEnv(configOverrides) {
   const props = {};
   const cache = {};
   const sheet = new FakeSheet("Quotes");
+  const sheets = { Quotes: sheet };
   const ss = {
     getId: () => "sheet-123", getUrl: () => "https://docs.google.com/spreadsheets/d/sheet-123",
-    getSheetByName: n => (n === "Quotes" ? sheet : null), insertSheet: () => sheet, getActiveSheet: () => sheet
+    getSheetByName: n => sheets[n] || null,
+    insertSheet: n => (sheets[n] = sheets[n] || new FakeSheet(n)),
+    getActiveSheet: () => sheet
   };
   const ui = {
     alert: (a, b) => { alerts.push(b ? a + " " + b : a); return ui.nextButton || "OK"; },
@@ -80,7 +84,7 @@ function createEnv(configOverrides) {
       newDataValidation: () => ({ requireValueInList() { return this; }, setAllowInvalid() { return this; }, build() { return {}; } })
     },
     MailApp: { sendEmail: o => { if (ctx.__failMail) throw new Error("mail down"); mail.push(o); } },
-    CacheService: { getScriptCache: () => ({ get: k => cache[k] || null, put: (k, v) => { cache[k] = v; } }) },
+    CacheService: { getScriptCache: () => ({ get: k => cache[k] || null, put: (k, v) => { cache[k] = v; }, remove: k => { delete cache[k]; } }) },
     PropertiesService: { getScriptProperties: () => ({ getProperty: k => (k in props ? props[k] : null), setProperty: (k, v) => { props[k] = String(v); } }) },
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
     Utilities: { formatDate },
@@ -90,7 +94,7 @@ function createEnv(configOverrides) {
   vm.createContext(ctx);
   const src = fs.readFileSync(path.join(ROOT, "apps-script", "Config.gs"), "utf8") + "\n" +
     fs.readFileSync(path.join(ROOT, "apps-script", "Code.gs"), "utf8") +
-    "\n;this.__api = { doPost, doGet, setup, sendInvoiceForSelectedRow, resendQuoteForSelectedRow, sendTestQuote, onOpen, CONFIG, COLS, renderQuoteEmail_, renderInvoiceEmail_, buildQuote_ };";
+    "\n;this.__api = { doPost, doGet, onEdit, setup, sendInvoiceForSelectedRow, resendQuoteForSelectedRow, sendTestQuote, onOpen, CONFIG, COLS, REVIEW_COLS, renderQuoteEmail_, renderInvoiceEmail_, buildQuote_ };";
   vm.runInContext(src, ctx);
   const api = ctx.__api;
   Object.assign(api.CONFIG, configOverrides || {});
@@ -105,7 +109,13 @@ function createEnv(configOverrides) {
     return rec;
   };
   const setByHeader = (row, col, value) => sheet.set(row, sheet.data[0].indexOf(col) + 1, value);
-  return { api, ctx, errors, mail, alerts, props, cache, sheet, ui, post, record, setByHeader };
+  const get = params => JSON.parse(api.doGet(params ? { parameter: params } : undefined).content);
+  // Add a row to the Reviews tab by column name, the way an owner would paste one in.
+  const addReview = rec => {
+    const tab = sheets.Reviews;
+    tab.appendRow(tab.data[0].map(h => (h in rec ? rec[h] : "")));
+  };
+  return { api, ctx, errors, mail, alerts, props, cache, sheet, sheets, ui, post, get, record, setByHeader, addReview };
 }
 
 function sampleRequest(extra) {
@@ -116,4 +126,11 @@ function sampleRequest(extra) {
   }, extra || {});
 }
 
-module.exports = { createEnv, sampleRequest };
+function sampleReview(extra) {
+  return Object.assign({
+    type: "review", name: "Jane Rivera", email: "jane@example.com", rating: "5", city: "Tacoma", service: "deep",
+    text: "Our kitchen has never looked this good. On time and thorough.", consent: true, website: "", elapsed: 30000
+  }, extra || {});
+}
+
+module.exports = { createEnv, sampleRequest, sampleReview };

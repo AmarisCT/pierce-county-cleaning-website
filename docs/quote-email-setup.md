@@ -69,6 +69,10 @@ Prices live in `src/assets/prices.js`. After changing them:
 2. In Apps Script, replace **Code.gs** with the new file. Leave **Config** alone.
 3. **Deploy → Manage deployments →** pencil icon **→ Version: New version → Deploy**. The web address stays the same. Without this step the form keeps using the old code.
 
+## Reviews
+
+The same script collects reviews from the website's Reviews page into a **Reviews** tab and serves the ones you approve back to the site. See [reviews.md](reviews.md).
+
 ## Limits
 
 - Free Gmail sends 100 emails a day. Each request sends 2 (customer + you), so the script stops at 45 requests a day (`maxQuotesPerDay` in Config). Visitors past that are asked to call or email instead.
