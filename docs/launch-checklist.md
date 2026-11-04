@@ -7,7 +7,7 @@ Everything here needs the owner. Items are in the order they unblock launch.
 - [ ] Approve or change launch prices in `src/assets/prices.js` (see [pricing.md](pricing.md))
 - [ ] Add business phone and email to `src/assets/config.js`
 - [ ] Confirm the service areas on `service-areas.html`; remove any you won't serve at launch
-- [ ] Confirm the contact hours on `contact.html`
+- [ ] Add office hours to `contact.html` once the cleaner schedule is set (for now the page promises a reply within one business day)
 - [ ] Write a short founding story on `about.html` (TODO marker in the file)
 - [ ] Attorney review of `privacy.html` and `terms.html` (re-clean, cancellation fee, damage, staff non-solicitation)
 - [x] Set up free quote & invoice emails ([quote-email-setup.md](quote-email-setup.md)) and set `quoteEndpoint`
