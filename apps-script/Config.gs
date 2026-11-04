@@ -14,8 +14,10 @@ const CONFIG = {
   replyTo: "",             // where customer replies go. Empty = this Google account's email
   notifyEmail: "",         // who gets new-request alerts. Empty = this Google account's email
 
-  // Required before you can send invoices. Example:
-  // "Pay by Zelle to (253) 555-0142, cash, or check payable to Pierce County Cleaning Services LLC."
+  // How customers pay, shown on invoices. Required unless Stripe is connected (PCCS menu →
+  // Connect Stripe, see docs/stripe-setup.md); with Stripe it appears as "Other ways to pay". Example:
+  // "Zelle to (253) 555-0142, cash, or check payable to Pierce County Cleaning Services LLC."
+  // Never put your Stripe key here.
   paymentInstructions: "",
 
   invoiceDueDays: 0,       // 0 = due on receipt; 15 = due in 15 days

@@ -56,6 +56,8 @@ Free, with no paid form service. The quote page shows an instant estimate from `
 
 After the job you send the invoice from the Sheet's **PCCS** menu. Setup takes about 15 minutes: [docs/quote-email-setup.md](docs/quote-email-setup.md).
 
+**Card payments (optional):** connect Stripe from the same menu and each invoice gets a **Pay by card** button for its exact amount. Paid invoices are marked Paid in the Sheet every hour. The Stripe key is stored in the script's private settings, never in this repo. Setup: [docs/stripe-setup.md](docs/stripe-setup.md).
+
 | Path | What it is |
 | --- | --- |
 | `apps-script/Config.gs` | Your settings: phone, payment instructions, limits |

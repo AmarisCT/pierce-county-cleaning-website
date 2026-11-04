@@ -53,7 +53,7 @@
         <p class="note">Please don't include door or alarm codes here. We collect access details securely once your booking is confirmed.</p>
       </fieldset>
 
-      <fieldset>
+      <fieldset id="q-details">
         <legend>Your details</legend>
         <div class="row">
           <label for="q-name">Name<input id="q-name" name="name" autocomplete="name" required></label>
@@ -77,5 +77,10 @@
       <p class="note">Estimates assume typical condition. When you send your request, we email you a copy of your quote and confirm the final price before booking.</p>
       <div class="result" id="q-result" hidden></div>
     </aside>
+  </div>
+  <!-- Phones: the estimate sits below the form, so a slim bar keeps the price in view while filling it in. -->
+  <div class="est-bar" id="q-bar" hidden>
+    <span><span class="caps">Estimate</span> <b id="q-bar-total">—</b></span>
+    <a href="#q-details" class="link">Send request</a>
   </div>
 </section>

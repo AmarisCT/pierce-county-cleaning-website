@@ -10,6 +10,8 @@
  *  - Each request is logged as a row in the "Quotes" sheet.
  *  - The customer is emailed a quote with the service, add-ons and total; you get an alert.
  *  - From the sheet's PCCS menu you can send an invoice for a finished job.
+ *  - Optional card payments: once Stripe is connected (PCCS → Connect Stripe), each invoice gets
+ *    its own Stripe payment link for the exact amount, and paid invoices are marked Paid.
  *  - The website's review form posts here too. Reviews land in the "Reviews" tab, hidden until
  *    you set "Show on website" to Yes. The website reads the shown ones back (GET ?reviews=1).
  */
@@ -23,7 +25,7 @@ const COLS = [
   "Received", "Quote #", "Status", "Name", "Email", "Phone", "Address", "ZIP",
   "Property", "Bedrooms", "Bathrooms", "Sq ft", "Service", "Frequency", "Add-ons",
   "Preferred date", "Quote total", "Service date", "Final amount", "Invoice note",
-  "Invoice #", "Invoice sent", "Notes", "Data (do not edit)"
+  "Invoice #", "Invoice sent", "Card pay link", "Paid on", "Notes", "Data (do not edit)"
 ];
 const STATUSES = ["New", "Contacted", "Booked", "Completed", "Invoiced", "Paid", "Lost", "Test"];
 const MONEY_COLS = ["Quote total", "Final amount"];
@@ -368,15 +370,21 @@ function renderQuoteEmail_(req, quote, quoteNumber, issued) {
   return { subject: subject, html: html, text: text };
 }
 
-function renderInvoiceEmail_(rec, invoiceNumber, lines, total, issued, serviceDate) {
+function renderInvoiceEmail_(rec, invoiceNumber, lines, total, issued, serviceDate, payUrl) {
   const due = CONFIG.invoiceDueDays > 0 ? fmtDate_(new Date(issued.getTime() + CONFIG.invoiceDueDays * 86400000), "MMMM d, yyyy") : "Due on receipt";
   const meta = [["Invoice", invoiceNumber], ["Issued", fmtDate_(issued, "MMMM d, yyyy")], ["Due", due]];
   if (rec["Quote #"]) meta.push(["Quote", rec["Quote #"]]);
   if (serviceDate) meta.push(["Service date", serviceDate]);
   const who = [rec["Name"], rec["Address"] + (rec["ZIP"] ? " " + rec["ZIP"] : ""), rec["Email"], rec["Phone"]];
   const reviewUrl = reviewLink_();
+  const payButton = payUrl
+    ? '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 12px"><tr><td style="background:' + C_.ink + '">' +
+      '<a href="' + esc_(payUrl) + '" style="display:inline-block;padding:15px 26px;font:500 12px ' + SANS_ + ';letter-spacing:2px;text-transform:uppercase;color:' + C_.paper + ';text-decoration:none">Pay ' + money_(total) + " by card</a></td></tr></table>" +
+      p_("Secure checkout by Stripe. We never see your card number.", true)
+    : "";
+  const otherWays = CONFIG.paymentInstructions ? p_((payUrl ? "Other ways to pay: " : "") + esc_(CONFIG.paymentInstructions)) : "";
   const body = linesTable_(lines, total, "Amount due") +
-    block_("How to pay", p_(esc_(CONFIG.paymentInstructions))) +
+    block_("How to pay", payButton + otherWays) +
     (reviewUrl ? block_("How did we do?", p_("A short review helps neighbors find us and tells us what to keep doing. " +
       '<a href="' + esc_(reviewUrl) + '" style="color:' + C_.ink + '">Leave a review</a>')) : "") +
     p_("Thank you for choosing " + esc_(CONFIG.businessName) + ". Questions about this invoice? Reply to this email" + (CONFIG.phone ? " or call " + esc_(CONFIG.phone) : "") + ".", true);
@@ -384,7 +392,9 @@ function renderInvoiceEmail_(rec, invoiceNumber, lines, total, issued, serviceDa
     CONFIG.businessName, "", "INVOICE " + invoiceNumber, "Issued " + fmtDate_(issued, "MMMM d, yyyy") + " · " + due, "",
     "Bill to: " + who.filter(String).join(", "), ""
   ].concat(lines.map(function (l) { return "  " + l.label + ": " + money_(l.amount); }))
-    .concat([(CONFIG.showSalesTaxLine ? "  WA sales tax: $0.00\n" : "") + "  AMOUNT DUE: " + money_(total), "", "How to pay: " + CONFIG.paymentInstructions])
+    .concat([(CONFIG.showSalesTaxLine ? "  WA sales tax: $0.00\n" : "") + "  AMOUNT DUE: " + money_(total), ""])
+    .concat(payUrl ? ["Pay by card (secure checkout by Stripe): " + payUrl] : [])
+    .concat(CONFIG.paymentInstructions ? [(payUrl ? "Other ways to pay: " : "How to pay: ") + CONFIG.paymentInstructions] : [])
     .concat(reviewUrl ? ["", "How did we do? Leave a review: " + reviewUrl] : []).join("\n");
   return { subject: "Invoice " + invoiceNumber + " — " + money_(total) + " — " + CONFIG.shortName, html: shell_("Invoice", meta, who, body, "Bill to"), text: text };
 }
@@ -495,8 +505,10 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu("PCCS")
     .addItem("Send invoice for selected row", "sendInvoiceForSelectedRow")
     .addItem("Resend quote for selected row", "resendQuoteForSelectedRow")
+    .addItem("Check for card payments", "checkCardPayments")
     .addSeparator()
     .addItem("Send a test quote to me", "sendTestQuote")
+    .addItem("Connect Stripe (card payments)", "connectStripe")
     .addItem("Set up this sheet", "setup")
     .addToUi();
 }
@@ -507,18 +519,21 @@ function setup() {
   const sheet = ss.getSheetByName(SHEET_NAME) || ss.insertSheet(SHEET_NAME, 0);
   const existing = sheet.getLastColumn() ? sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0] : [];
   if (!existing.filter(String).length) sheet.getRange(1, 1, 1, COLS.length).setValues([COLS]);
+  else ensureCols_(sheet, COLS); // an older sheet gets any new columns added at the end
+  const map = headerMap_(sheet);
   sheet.setFrozenRows(1);
-  sheet.getRange(1, 1, 1, COLS.length).setFontWeight("bold").setBackground(C_.stone);
+  sheet.getRange(1, 1, 1, sheet.getLastColumn()).setFontWeight("bold").setBackground(C_.stone);
   const rows = Math.max(sheet.getMaxRows() - 1, 1);
   const status = SpreadsheetApp.newDataValidation().requireValueInList(STATUSES, true).setAllowInvalid(true).build();
-  sheet.getRange(2, COLS.indexOf("Status") + 1, rows, 1).setDataValidation(status);
-  MONEY_COLS.forEach(function (c) { sheet.getRange(2, COLS.indexOf(c) + 1, rows, 1).setNumberFormat("$#,##0.00"); });
-  sheet.getRange(2, COLS.indexOf("Received") + 1, rows, 1).setNumberFormat("yyyy-mm-dd h:mm am/pm");
-  sheet.hideColumns(COLS.indexOf("Data (do not edit)") + 1);
+  sheet.getRange(2, map["Status"], rows, 1).setDataValidation(status);
+  MONEY_COLS.forEach(function (c) { sheet.getRange(2, map[c], rows, 1).setNumberFormat("$#,##0.00"); });
+  sheet.getRange(2, map["Received"], rows, 1).setNumberFormat("yyyy-mm-dd h:mm am/pm");
+  sheet.getRange(2, map["Paid on"], rows, 1).setNumberFormat("yyyy-mm-dd");
+  sheet.hideColumns(map["Data (do not edit)"]);
   reviewsSheet_(ss);
   const missing = [];
   if (!CONFIG.phone) missing.push("phone");
-  if (!CONFIG.paymentInstructions) missing.push("paymentInstructions (needed for invoices)");
+  if (!CONFIG.paymentInstructions && !stripeKey_()) missing.push("paymentInstructions (needed for invoices unless Stripe is connected)");
   if (!CONFIG.website) missing.push("website (adds the review link to invoices)");
   SpreadsheetApp.getUi().alert("Sheet is ready.\n\nNext: Deploy → New deployment → Web app (Execute as: Me, Who has access: Anyone), then put the web app URL in the website's config.js." +
     (missing.length ? "\n\nStill empty in Config.gs: " + missing.join(", ") + "." : ""));
@@ -526,7 +541,7 @@ function setup() {
 
 function sendInvoiceForSelectedRow() {
   const ui = SpreadsheetApp.getUi();
-  if (!CONFIG.paymentInstructions) { ui.alert("Add your payment instructions to paymentInstructions in Config.gs first, so customers know how to pay."); return; }
+  if (!CONFIG.paymentInstructions && !stripeKey_()) { ui.alert("Add your payment instructions to paymentInstructions in Config.gs (or connect Stripe from the PCCS menu) first, so customers know how to pay."); return; }
   const sel = selectedRecord_();
   if (!sel) return;
   const rec = sel.rec;
@@ -555,13 +570,218 @@ function sendInvoiceForSelectedRow() {
   const invoiceNumber = rec["Invoice #"] || nextNumber_("INV", now);
   const serviceDate = rec["Service date"] instanceof Date ? fmtDate_(rec["Service date"], "MMMM d, yyyy") :
     (rec["Service date"] ? String(rec["Service date"]) : (rec["Preferred date"] ? fmtYmd_(String(rec["Preferred date"])) : ""));
-  const msg = renderInvoiceEmail_(rec, invoiceNumber, lines, final, now, serviceDate);
+  ensureCols_(sel.sheet, ["Card pay link", "Paid on"]);
+
+  // Card payment link (only when Stripe is connected).
+  let payUrl = "";
+  if (stripeKey_()) {
+    try {
+      const link = cardPayLink_(invoiceNumber, final, rec);
+      if (link && link.paidAt) {
+        setCell_(sel.sheet, sel.row, "Status", "Paid");
+        setCell_(sel.sheet, sel.row, "Paid on", link.paidAt);
+        ui.alert("Invoice " + invoiceNumber + " was already paid by card (" + money_(link.paidAmount) + "). The row is now marked Paid, and nothing was sent.");
+        return;
+      }
+      if (link) payUrl = payPageUrl_(link.url, String(rec["Email"]), invoiceNumber);
+    } catch (err) {
+      console.error(err);
+      if (!CONFIG.paymentInstructions) { ui.alert("Couldn't create the card payment link, so the invoice wasn't sent.\n\n" + err.message); return; }
+      const goOn = ui.alert("Couldn't create the card payment link.", err.message + "\n\nSend the invoice without a card link (your other payment instructions only)?", ui.ButtonSet.YES_NO);
+      if (goOn !== ui.Button.YES) return;
+    }
+  }
+
+  const msg = renderInvoiceEmail_(rec, invoiceNumber, lines, final, now, serviceDate, payUrl);
   MailApp.sendEmail({ to: String(rec["Email"]), subject: msg.subject, body: msg.text, htmlBody: msg.html, name: CONFIG.businessName, replyTo: replyTo_() });
   setCell_(sel.sheet, sel.row, "Invoice #", invoiceNumber);
   setCell_(sel.sheet, sel.row, "Invoice sent", now);
+  setCell_(sel.sheet, sel.row, "Card pay link", payUrl);
   if (rec["Final amount"] === "" || rec["Final amount"] == null) setCell_(sel.sheet, sel.row, "Final amount", final);
   if (["Paid", "Lost"].indexOf(String(rec["Status"])) < 0) setCell_(sel.sheet, sel.row, "Status", "Invoiced");
-  ui.alert("Invoice " + invoiceNumber + " for " + money_(final) + " sent to " + rec["Email"] + ".");
+  ui.alert("Invoice " + invoiceNumber + " for " + money_(final) + " sent to " + rec["Email"] + (payUrl ? ", with a card payment link" : "") + ".");
+}
+
+// ===== Card payments (Stripe) =====
+// The Stripe key is kept in Script Properties (PCCS → Connect Stripe), never in Config.gs or the
+// website. Each invoice gets one payment link for its exact amount that closes after one payment.
+const STRIPE_KEY_PROP = "STRIPE_SECRET_KEY";
+const STRIPE_PRODUCT_PROP = "stripe:product";
+const PAYMENT_CHECK_HANDLER = "checkCardPaymentsHourly";
+
+function stripeKey_() { return PropertiesService.getScriptProperties().getProperty(STRIPE_KEY_PROP) || ""; }
+function stripeMode_(key) { return /_test_/.test(key) ? "test" : "live"; }
+
+function stripe_(method, path, params, key) {
+  const opts = { method: method, headers: { Authorization: "Bearer " + (key || stripeKey_()) }, muteHttpExceptions: true };
+  let url = "https://api.stripe.com/v1/" + path;
+  if (method === "get") {
+    const qs = Object.keys(params || {}).map(function (k) { return encodeURIComponent(k) + "=" + encodeURIComponent(params[k]); }).join("&");
+    if (qs) url += "?" + qs;
+  } else {
+    opts.payload = params || {};
+  }
+  const res = UrlFetchApp.fetch(url, opts);
+  let body = {};
+  try { body = JSON.parse(res.getContentText()); } catch (e) { /* not JSON */ }
+  if (res.getResponseCode() >= 300) {
+    throw new Error("Stripe said: " + ((body.error && body.error.message) || "error " + res.getResponseCode()));
+  }
+  return body;
+}
+
+// The first completed, paid checkout for a payment link, or null.
+function paidSession_(linkId) {
+  const list = stripe_("get", "checkout/sessions", { payment_link: linkId, status: "complete", limit: "10" });
+  return (list.data || []).filter(function (s) { return s.payment_status === "paid"; })[0] || null;
+}
+
+// One reusable Stripe product for all invoices, so the product catalog stays tidy.
+function stripeProduct_() {
+  const props = PropertiesService.getScriptProperties();
+  const saved = props.getProperty(STRIPE_PRODUCT_PROP);
+  if (saved) return saved;
+  const product = stripe_("post", "products", { name: CONFIG.businessName + " — cleaning invoice" });
+  props.setProperty(STRIPE_PRODUCT_PROP, product.id);
+  return product.id;
+}
+
+// Returns { url } for this invoice's payment link, creating or replacing it as needed, or
+// { paidAt, paidAmount } if the invoice's current link has already been paid.
+function cardPayLink_(invoiceNumber, amount, rec) {
+  const cents = Math.round(Number(amount) * 100);
+  if (!(cents >= 50)) return null; // Stripe's minimum charge is $0.50
+  const props = PropertiesService.getScriptProperties();
+  const key = "stripe:" + invoiceNumber;
+  let saved = null;
+  try { saved = JSON.parse(props.getProperty(key) || "null"); } catch (e) { saved = null; }
+  if (saved && saved.id) {
+    const paid = paidSession_(saved.id);
+    if (paid) return { paidAt: new Date(paid.created * 1000), paidAmount: (paid.amount_total || 0) / 100 };
+    if (saved.cents === cents) return saved; // same amount: reuse the link already sent
+    stripe_("post", "payment_links/" + saved.id, { active: "false" }); // amount changed: retire the old link
+  }
+  const label = "Invoice " + invoiceNumber + " — " + CONFIG.businessName;
+  const newPrice = function () { return stripe_("post", "prices", { currency: "usd", unit_amount: String(cents), product: stripeProduct_() }); };
+  let price;
+  try {
+    price = newPrice();
+  } catch (err) {
+    if (!/no such product/i.test(err.message)) throw err;
+    props.deleteProperty(STRIPE_PRODUCT_PROP); // the saved product was deleted in Stripe: make a new one
+    price = newPrice();
+  }
+  const linkParams = {
+    "line_items[0][price]": price.id,
+    "line_items[0][quantity]": "1",
+    "restrictions[completed_sessions][limit]": "1",
+    "inactive_message": "Invoice " + invoiceNumber + " has been paid or replaced by a newer invoice. Questions? Reply to your invoice email.",
+    "submit_type": "pay",
+    "metadata[invoice]": invoiceNumber,
+    "payment_intent_data[description]": label,
+    "payment_intent_data[metadata][invoice]": invoiceNumber,
+    "after_completion[type]": "hosted_confirmation",
+    "after_completion[hosted_confirmation][custom_message]": "Thank you! Your payment for invoice " + invoiceNumber + " is complete."
+  };
+  if (rec && rec["Quote #"]) linkParams["metadata[quote]"] = String(rec["Quote #"]);
+  const link = stripe_("post", "payment_links", linkParams);
+  const out = { id: link.id, url: link.url, cents: cents };
+  props.setProperty(key, JSON.stringify(out));
+  return out;
+}
+
+// The link sent to the customer, with their email filled in and the invoice number attached.
+function payPageUrl_(url, email, invoiceNumber) {
+  const q = [];
+  if (/@/.test(email)) q.push("prefilled_email=" + encodeURIComponent(email));
+  q.push("client_reference_id=" + encodeURIComponent(invoiceNumber.replace(/[^A-Za-z0-9_-]/g, "")));
+  return url + (url.indexOf("?") < 0 ? "?" : "&") + q.join("&");
+}
+
+// Marks rows Paid when their invoice's card payment link has been paid. Returns what changed.
+function markCardPayments_() {
+  const out = { paid: [], errors: [] };
+  const sheet = quotesSheet_();
+  ensureCols_(sheet, ["Card pay link", "Paid on"]);
+  const map = headerMap_(sheet);
+  const last = sheet.getLastRow();
+  if (last < 2) return out;
+  const values = sheet.getRange(2, 1, last - 1, sheet.getLastColumn()).getValues();
+  const props = PropertiesService.getScriptProperties();
+  values.forEach(function (v, i) {
+    const inv = String(v[map["Invoice #"] - 1] || "");
+    const status = String(v[map["Status"] - 1] || "");
+    if (!inv || status === "Paid" || status === "Lost") return;
+    let saved = null;
+    try { saved = JSON.parse(props.getProperty("stripe:" + inv) || "null"); } catch (e) { saved = null; }
+    if (!saved || !saved.id) return;
+    try {
+      const paid = paidSession_(saved.id);
+      if (!paid) return;
+      sheet.getRange(i + 2, map["Status"]).setValue("Paid");
+      sheet.getRange(i + 2, map["Paid on"]).setValue(new Date(paid.created * 1000));
+      out.paid.push(inv + " — " + money_((paid.amount_total || 0) / 100) + " — " + v[map["Name"] - 1]);
+    } catch (err) {
+      out.errors.push(inv + ": " + err.message);
+    }
+  });
+  return out;
+}
+
+function checkCardPayments() {
+  const ui = SpreadsheetApp.getUi();
+  if (!stripeKey_()) { ui.alert("Stripe isn't connected yet. Use PCCS → Connect Stripe (card payments) first."); return; }
+  const res = markCardPayments_();
+  ui.alert((res.paid.length ? "Marked as Paid:\n" + res.paid.join("\n") : "No new card payments.") +
+    (res.errors.length ? "\n\nCouldn't check:\n" + res.errors.join("\n") : ""));
+}
+
+// Runs every hour once Stripe is connected.
+function checkCardPaymentsHourly() {
+  if (!stripeKey_()) return;
+  const res = markCardPayments_();
+  if (res.errors.length) console.error("Card payment check: " + res.errors.join("; "));
+}
+
+function connectStripe() {
+  const ui = SpreadsheetApp.getUi();
+  const props = PropertiesService.getScriptProperties();
+  const current = stripeKey_();
+  const intro = current
+    ? "Stripe is connected (" + stripeMode_(current) + " mode). Paste a new key to replace it, or type DISCONNECT to turn card payments off.\n\n"
+    : "Invoices will include a \"Pay by card\" button, and paid invoices are marked Paid every hour.\n\n";
+  const res = ui.prompt("Connect Stripe", intro + "Paste your Stripe restricted key (it starts with rk_live_). docs/stripe-setup.md shows how to make one.", ui.ButtonSet.OK_CANCEL);
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+  const input = String(res.getResponseText() || "").trim();
+  if (current && input.toUpperCase() === "DISCONNECT") {
+    props.deleteProperty(STRIPE_KEY_PROP);
+    setPaymentCheck_(false);
+    ui.alert("Stripe is disconnected. New invoices use only your payment instructions. Links already sent keep working until you turn them off in Stripe.");
+    return;
+  }
+  if (!/^(rk|sk)_(live|test)_[A-Za-z0-9]{10,}$/.test(input)) { ui.alert("That doesn't look like a Stripe key. Restricted keys start with rk_live_ (or rk_test_ for practice)."); return; }
+  if (/^sk_/.test(input)) {
+    const ok = ui.alert("That's a full secret key.", "A restricted key (rk_...) can only do what invoices need, so it's safer if anything goes wrong. Use this key anyway?", ui.ButtonSet.YES_NO);
+    if (ok !== ui.Button.YES) return;
+  }
+  try {
+    stripe_("get", "payment_links", { limit: "1" }, input);
+    stripe_("get", "checkout/sessions", { limit: "1" }, input);
+  } catch (err) {
+    ui.alert("Stripe didn't accept that key, so nothing was saved.\n\n" + err.message + "\n\nThe key needs: Products, Prices and Payment Links set to Write, and Checkout Sessions set to Read.");
+    return;
+  }
+  if (current && stripeMode_(current) !== stripeMode_(input)) props.deleteProperty(STRIPE_PRODUCT_PROP); // test and live have separate catalogs
+  props.setProperty(STRIPE_KEY_PROP, input);
+  setPaymentCheck_(true);
+  ui.alert("Stripe connected (" + stripeMode_(input) + " mode).\n\nNew invoices include a \"Pay by card\" button for the exact amount. Paid invoices are marked Paid every hour, or right away with PCCS → Check for card payments." +
+    (stripeMode_(input) === "test" ? "\n\nThis is a test key: no real money moves. Connect your rk_live_ key before sending real invoices." : ""));
+}
+
+function setPaymentCheck_(on) {
+  const existing = ScriptApp.getProjectTriggers().filter(function (t) { return t.getHandlerFunction() === PAYMENT_CHECK_HANDLER; });
+  if (on && !existing.length) ScriptApp.newTrigger(PAYMENT_CHECK_HANDLER).timeBased().everyHours(1).create();
+  if (!on) existing.forEach(function (t) { ScriptApp.deleteTrigger(t); });
 }
 
 function resendQuoteForSelectedRow() {
@@ -623,6 +843,15 @@ function headerMap_(sheet) {
   const map = {};
   head.forEach(function (h, i) { if (h) map[String(h)] = i + 1; });
   return map;
+}
+
+// Adds any of these column headings that the sheet doesn't have yet, at the end of the header row.
+function ensureCols_(sheet, names) {
+  const map = headerMap_(sheet);
+  let next = sheet.getLastColumn() + 1;
+  names.forEach(function (n) {
+    if (!map[n]) { sheet.getRange(1, next).setValue(n); next++; }
+  });
 }
 
 function appendRecord_(sheet, rec) {

@@ -280,4 +280,164 @@ module.exports = function run(check) {
     env.api.sendInvoiceForSelectedRow();
     assert.ok(!env.mail[0].htmlBody.includes("How did we do"));
   });
+
+  // ===== Card payments (Stripe) =====
+  const KEY = "rk_live_" + "a1B2c3D4e5F6g7H8i9J0k1L2";
+  const connected = (config) => {
+    const env = createEnv(Object.assign({ paymentInstructions: "Zelle to (253) 555-0142, cash or check." }, config || {}));
+    env.ui.nextPrompt = { text: KEY, button: "OK" };
+    env.api.connectStripe();
+    env.alerts.length = 0;
+    return env;
+  };
+
+  check("stripe: connecting checks the key, stores it privately and turns on the hourly check", () => {
+    const env = createEnv();
+    env.ui.nextPrompt = { text: "not a key", button: "OK" };
+    env.api.connectStripe();
+    assert.ok(!env.props.STRIPE_SECRET_KEY);
+    env.ui.nextPrompt = { text: KEY, button: "OK" };
+    env.api.connectStripe();
+    assert.strictEqual(env.props.STRIPE_SECRET_KEY, KEY);
+    assert.match(env.alerts.pop(), /Stripe connected \(live mode\)/);
+    assert.deepStrictEqual(env.triggers.list.map(t => t.getHandlerFunction()), ["checkCardPaymentsHourly"]);
+    env.ui.nextPrompt = { text: KEY, button: "OK" };
+    env.api.connectStripe();
+    assert.strictEqual(env.triggers.list.length, 1, "reconnecting must not add a second hourly check");
+    env.ui.nextPrompt = { text: "disconnect", button: "OK" };
+    env.api.connectStripe();
+    assert.ok(!env.props.STRIPE_SECRET_KEY);
+    assert.strictEqual(env.triggers.list.length, 0);
+  });
+
+  check("stripe: a key Stripe rejects is not saved", () => {
+    const env = createEnv();
+    env.stripe.fail = (m, route) => route === "checkout/sessions";
+    env.stripe.failMessage = "The provided key does not have the required permissions for this endpoint.";
+    env.ui.nextPrompt = { text: KEY, button: "OK" };
+    env.api.connectStripe();
+    assert.ok(!env.props.STRIPE_SECRET_KEY);
+    assert.match(env.alerts.pop(), /required permissions[\s\S]*Checkout Sessions set to Read/);
+    assert.strictEqual(env.triggers.list.length, 0);
+  });
+
+  check("stripe: invoice has a Pay by card button for the exact amount, plus other ways to pay", () => {
+    const env = connected();
+    env.post(sampleRequest());
+    env.mail.length = 0;
+    env.setByHeader(2, "Final amount", 300);
+    env.api.sendInvoiceForSelectedRow();
+    assert.strictEqual(env.mail.length, 1);
+    const inv = env.mail[0];
+    const rec = env.record(2);
+    const link = env.stripe.lastLink();
+    assert.strictEqual(env.stripe.prices[link["line_items[0][price]"]].unit_amount, "30000");
+    assert.strictEqual(link["restrictions[completed_sessions][limit]"], "1");
+    assert.strictEqual(link["metadata[invoice]"], rec["Invoice #"]);
+    assert.ok(rec["Card pay link"].startsWith(link.url + "?prefilled_email=jane%40example.com&client_reference_id=INV-"));
+    for (const s of ["Pay $300.00 by card", rec["Card pay link"].replace(/&/g, "&amp;"), "Other ways to pay: Zelle"]) assert.ok(inv.htmlBody.includes(s), "invoice missing " + s);
+    assert.ok(inv.body.includes("Pay by card (secure checkout by Stripe): " + rec["Card pay link"]));
+    assert.strictEqual(rec["Status"], "Invoiced");
+    const everything = JSON.stringify(env.mail) + JSON.stringify(env.sheet.data);
+    assert.ok(!everything.includes(KEY), "the Stripe key must never appear in emails or the sheet");
+  });
+
+  check("stripe: invoices share one Stripe product and work without other payment instructions", () => {
+    const env = connected({ paymentInstructions: "" });
+    env.post(sampleRequest());
+    env.post(sampleRequest({ email: "sam@example.com", name: "Sam Lee" }));
+    env.mail.length = 0;
+    env.sheet.activeRow = 2; env.api.sendInvoiceForSelectedRow();
+    env.sheet.activeRow = 3; env.api.sendInvoiceForSelectedRow();
+    assert.strictEqual(env.mail.length, 2);
+    assert.strictEqual(Object.keys(env.stripe.products).length, 1);
+    assert.strictEqual(Object.keys(env.stripe.links).length, 2);
+    assert.ok(!env.mail[0].htmlBody.includes("Other ways to pay"));
+    assert.ok(!env.mail[0].body.includes("How to pay:"));
+  });
+
+  check("stripe: resending keeps the same link, and a changed amount retires the old one", () => {
+    const env = connected();
+    env.post(sampleRequest());
+    env.api.sendInvoiceForSelectedRow();
+    const first = env.record(2)["Card pay link"];
+    env.ui.nextButton = "YES";
+    env.api.sendInvoiceForSelectedRow();
+    assert.strictEqual(env.record(2)["Card pay link"], first);
+    assert.strictEqual(Object.keys(env.stripe.links).length, 1);
+    env.setByHeader(2, "Final amount", 320);
+    env.api.sendInvoiceForSelectedRow();
+    const ids = Object.keys(env.stripe.links);
+    assert.strictEqual(ids.length, 2);
+    assert.strictEqual(env.stripe.links[ids[0]].active, false);
+    assert.notStrictEqual(env.record(2)["Card pay link"], first);
+    assert.ok(env.mail.pop().htmlBody.includes("Pay $320.00 by card"));
+  });
+
+  check("stripe: an invoice already paid by card isn't sent again", () => {
+    const env = connected();
+    env.post(sampleRequest());
+    env.api.sendInvoiceForSelectedRow();
+    env.stripe.pay(Object.keys(env.stripe.links)[0]);
+    env.mail.length = 0;
+    env.ui.nextButton = "YES";
+    env.api.sendInvoiceForSelectedRow();
+    assert.strictEqual(env.mail.length, 0);
+    assert.strictEqual(env.record(2)["Status"], "Paid");
+    assert.match(env.alerts.pop(), /already paid by card \(\$280\.00\)/);
+  });
+
+  check("stripe: paid invoices are marked Paid; unpaid and pending ones are left alone", () => {
+    const env = connected();
+    env.post(sampleRequest());
+    env.post(sampleRequest({ email: "sam@example.com", name: "Sam Lee" }));
+    env.post(sampleRequest({ email: "kim@example.com", name: "Kim Park" }));
+    for (const row of [2, 3, 4]) { env.sheet.activeRow = row; env.api.sendInvoiceForSelectedRow(); }
+    const ids = Object.keys(env.stripe.links);
+    env.stripe.pay(ids[0]);
+    env.stripe.pay(ids[2], { payment_status: "unpaid" }); // e.g. a bank payment still processing
+    env.alerts.length = 0;
+    env.api.checkCardPayments();
+    assert.match(env.alerts[0], /Marked as Paid:\nINV-\d{4}-0001 — \$280\.00 — Jane Rivera/);
+    assert.deepStrictEqual([2, 3, 4].map(r => env.record(r)["Status"]), ["Paid", "Invoiced", "Invoiced"]);
+    assert.strictEqual(Object.prototype.toString.call(env.record(2)["Paid on"]), "[object Date]");
+    env.stripe.pay(ids[1]);
+    env.api.checkCardPaymentsHourly();
+    assert.strictEqual(env.record(3)["Status"], "Paid");
+  });
+
+  check("stripe: if Stripe fails, you choose whether to send without the card link", () => {
+    const env = connected();
+    env.post(sampleRequest());
+    env.mail.length = 0;
+    env.stripe.fail = (m, route) => route === "payment_links" && m === "post";
+    env.ui.nextButton = "NO";
+    env.api.sendInvoiceForSelectedRow();
+    assert.strictEqual(env.mail.length, 0);
+    env.ui.nextButton = "YES";
+    env.api.sendInvoiceForSelectedRow();
+    assert.strictEqual(env.mail.length, 1);
+    assert.ok(!env.mail[0].htmlBody.includes("by card</a>"));
+    assert.ok(env.mail[0].htmlBody.includes("Zelle"));
+    const noBackup = connected({ paymentInstructions: "" });
+    noBackup.post(sampleRequest());
+    noBackup.mail.length = 0;
+    noBackup.stripe.fail = () => true;
+    noBackup.api.sendInvoiceForSelectedRow();
+    assert.strictEqual(noBackup.mail.length, 0);
+    assert.match(noBackup.alerts.pop(), /wasn't sent/);
+  });
+
+  check("setup: an older sheet gets the new columns added at the end, keeping its rows", () => {
+    const env = createEnv({ paymentInstructions: "Cash or check." });
+    env.post(sampleRequest());
+    const old = env.sheet.data[0].filter(h => h !== "Card pay link" && h !== "Paid on");
+    env.sheet.data = env.sheet.data.map(row => row.filter((v, i) => !["Card pay link", "Paid on"].includes(env.sheet.data[0][i])));
+    assert.deepStrictEqual(env.sheet.data[0], old);
+    env.api.setup();
+    assert.deepStrictEqual(env.sheet.data[0].slice(-2), ["Card pay link", "Paid on"]);
+    assert.strictEqual(env.record(2)["Name"], "Jane Rivera");
+    env.api.sendInvoiceForSelectedRow();
+    assert.strictEqual(env.record(2)["Status"], "Invoiced");
+  });
 };
