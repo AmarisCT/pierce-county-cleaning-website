@@ -183,7 +183,7 @@ function businessNode() {
     "url": `${SITE_URL}/`,
     "email": CONFIG.email || undefined,
     "telephone": CONFIG.phone || undefined,
-    "logo": `${SITE_URL}/assets/apple-touch-icon.png`,
+    "logo": `${SITE_URL}/assets/logo-square.png`,
     "image": `${SITE_URL}/assets/og-image.jpg`,
     "priceRange": CONFIG.showPrices ? `$${Math.min(...all)}–$${Math.max(...all)}` : undefined,
     "currenciesAccepted": "USD",
@@ -301,7 +301,7 @@ ${structuredData(file, meta, body, metas)}
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-head">
   <div class="wrap">
-    <a class="brand" href="index.html"><b>Pierce County Cleaning</b><span>Clean Spaces, Clear Minds.</span></a>
+    <a class="brand" href="index.html"><picture><source media="(max-width:760px)" srcset="assets/logo-row.svg" width="349" height="50"><img src="assets/logo.svg" width="399" height="160" alt="Pierce County Cleaning Services"></picture></a>
     <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">
       <svg width="20" height="12" viewBox="0 0 20 12" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M0 1h20M0 6h20M0 11h20"/></svg>
     </button>

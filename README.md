@@ -20,6 +20,7 @@ Residential and small-business cleaning in Tacoma, Puyallup, Lakewood, Spanaway 
 | `site/` | Built website, ready to host. Don't edit by hand; edit `src/` and rebuild |
 | `internal/pricing-calculator.html` | Private job-profit calculator. **Not part of the public site** — open it locally |
 | `docs/` | Pricing, compliance notes, booking tool comparison, launch checklist |
+| `brand/` | Logo files (SVG and PNG) for Google, Stripe, social profiles and print. Not published with the site; see [brand/README.md](brand/README.md) |
 | `tests/` | Checks for the price estimator and the built pages |
 
 ## Pages

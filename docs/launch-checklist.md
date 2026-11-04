@@ -13,7 +13,7 @@ Everything here needs the owner. Items are in the order they unblock launch.
 - [x] Set up free quote & invoice emails ([quote-email-setup.md](quote-email-setup.md)) and set `quoteEndpoint`
 - [ ] Finish Stripe activation (business category, description, support phone, statement descriptor, payout bank account, terms) and connect it to the invoice sheet ([stripe-setup.md](stripe-setup.md))
 - [ ] Confirm ownership of the domain (piercecountycleaning.com was a proposal, not confirmed)
-- [ ] Add the logo file to `src/assets/` and the header in `build.js`
+- [x] Add the logo file to `src/assets/` and the header in `build.js` (logo files for other places are in [`brand/`](../brand/README.md))
 - [ ] Review the 15 stock photos on the live preview and swap any you don't like (see [photos.md](photos.md)); replace with your own job photos over time
 - [ ] Only after certificates exist: add "insured and bonded" to `about.html`
 
