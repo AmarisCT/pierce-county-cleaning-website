@@ -58,6 +58,59 @@ class FakeSheet {
   getActiveRange() { return new FakeRange(this, this.activeRow, 1); }
 }
 
+// A small stand-in for the Stripe API, answering the calls Code.gs makes through UrlFetchApp.
+function fakeStripe() {
+  const s = { products: {}, prices: {}, links: {}, sessions: [], calls: [], n: 0, fail: null };
+  const reply = (code, body) => ({ getResponseCode: () => code, getContentText: () => JSON.stringify(body) });
+  s.fetch = (url, opts) => {
+    const u = new URL(url);
+    const p = (opts.method || "get") === "get" ? Object.fromEntries(u.searchParams) : Object.assign({}, opts.payload);
+    const method = (opts.method || "get").toLowerCase();
+    const route = u.pathname.replace(/^\/v1\//, "");
+    s.calls.push({ method, route, params: p, auth: opts.headers && opts.headers.Authorization });
+    if (!opts.muteHttpExceptions) throw new Error("Code.gs should mute HTTP exceptions");
+    if (s.fail && s.fail(method, route, p)) return reply(400, { error: { message: s.failMessage || "Something went wrong" } });
+    if (!/^Bearer (rk|sk)_(live|test)_/.test((opts.headers || {}).Authorization || "")) return reply(401, { error: { message: "Invalid API Key provided" } });
+    let m;
+    if (method === "post" && route === "products") { const id = "prod_" + (++s.n); s.products[id] = p; return reply(200, { id }); }
+    if (method === "post" && route === "prices") {
+      if (!s.products[p.product]) return reply(400, { error: { message: "No such product: '" + p.product + "'" } });
+      const id = "price_" + (++s.n); s.prices[id] = p; return reply(200, { id });
+    }
+    if (method === "post" && route === "payment_links") {
+      const id = "plink_" + (++s.n); s.links[id] = Object.assign({ active: true, url: "https://buy.stripe.com/test_" + id }, p);
+      return reply(200, { id, url: s.links[id].url });
+    }
+    if (method === "post" && (m = route.match(/^payment_links\/(.+)$/))) { s.links[m[1]].active = p.active !== "false"; return reply(200, { id: m[1] }); }
+    if (method === "get" && route === "payment_links") return reply(200, { data: [] });
+    if (method === "get" && route === "checkout/sessions") {
+      let d = s.sessions;
+      if (p.payment_link) d = d.filter(x => x.payment_link === p.payment_link);
+      if (p.status) d = d.filter(x => x.status === p.status);
+      return reply(200, { data: d });
+    }
+    return reply(404, { error: { message: "Unrecognized request URL" } });
+  };
+  // Simulate a customer paying a link.
+  s.pay = (linkId, extra) => {
+    const price = s.prices[s.links[linkId]["line_items[0][price]"]];
+    s.sessions.push(Object.assign({ id: "cs_" + (++s.n), payment_link: linkId, status: "complete", payment_status: "paid",
+      amount_total: Number(price.unit_amount), created: Math.floor(Date.UTC(2026, 10, 2, 18) / 1000) }, extra || {}));
+  };
+  s.lastLink = () => s.links[Object.keys(s.links).pop()];
+  return s;
+}
+
+function fakeTriggers() {
+  const list = [];
+  return {
+    list,
+    getProjectTriggers: () => list.slice(),
+    deleteTrigger: t => { const i = list.indexOf(t); if (i >= 0) list.splice(i, 1); },
+    newTrigger: handler => ({ timeBased: () => ({ everyHours: hours => ({ create: () => { const t = { getHandlerFunction: () => handler, hours }; list.push(t); return t; } }) }) })
+  };
+}
+
 function createEnv(configOverrides) {
   const mail = [];
   const alerts = [];
@@ -73,11 +126,17 @@ function createEnv(configOverrides) {
   };
   const ui = {
     alert: (a, b) => { alerts.push(b ? a + " " + b : a); return ui.nextButton || "OK"; },
-    ButtonSet: { YES_NO: "YES_NO" }, Button: { YES: "YES", NO: "NO" },
+    // Set ui.nextPrompt = { text, button } before calling something that asks for input.
+    prompt: (title, msg) => { alerts.push(title + " " + msg); const n = ui.nextPrompt || { text: "", button: "CANCEL" }; return { getSelectedButton: () => n.button || "OK", getResponseText: () => n.text }; },
+    ButtonSet: { YES_NO: "YES_NO", OK_CANCEL: "OK_CANCEL" }, Button: { YES: "YES", NO: "NO", OK: "OK", CANCEL: "CANCEL" },
     createMenu: () => ({ addItem() { return this; }, addSeparator() { return this; }, addToUi() {} })
   };
   const errors = [];
+  const stripe = fakeStripe();
+  const triggers = fakeTriggers();
   const ctx = {
+    UrlFetchApp: { fetch: (url, opts) => stripe.fetch(url, opts) },
+    ScriptApp: triggers,
     console: { log: console.log, warn: console.warn, error: (...a) => errors.push(a.map(String).join(" ")) },
     SpreadsheetApp: {
       openById: () => ss, getActiveSpreadsheet: () => ss, getUi: () => ui,
@@ -85,7 +144,7 @@ function createEnv(configOverrides) {
     },
     MailApp: { sendEmail: o => { if (ctx.__failMail) throw new Error("mail down"); mail.push(o); } },
     CacheService: { getScriptCache: () => ({ get: k => cache[k] || null, put: (k, v) => { cache[k] = v; }, remove: k => { delete cache[k]; } }) },
-    PropertiesService: { getScriptProperties: () => ({ getProperty: k => (k in props ? props[k] : null), setProperty: (k, v) => { props[k] = String(v); } }) },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: k => (k in props ? props[k] : null), setProperty: (k, v) => { props[k] = String(v); }, deleteProperty: k => { delete props[k]; } }) },
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
     Utilities: { formatDate },
     Session: { getEffectiveUser: () => ({ getEmail: () => "owner@example.com" }) },
@@ -94,7 +153,7 @@ function createEnv(configOverrides) {
   vm.createContext(ctx);
   const src = fs.readFileSync(path.join(ROOT, "apps-script", "Config.gs"), "utf8") + "\n" +
     fs.readFileSync(path.join(ROOT, "apps-script", "Code.gs"), "utf8") +
-    "\n;this.__api = { doPost, doGet, onEdit, setup, sendInvoiceForSelectedRow, resendQuoteForSelectedRow, sendTestQuote, onOpen, CONFIG, COLS, REVIEW_COLS, renderQuoteEmail_, renderInvoiceEmail_, buildQuote_ };";
+    "\n;this.__api = { doPost, doGet, onEdit, setup, sendInvoiceForSelectedRow, resendQuoteForSelectedRow, sendTestQuote, onOpen, connectStripe, checkCardPayments, checkCardPaymentsHourly, CONFIG, COLS, REVIEW_COLS, renderQuoteEmail_, renderInvoiceEmail_, buildQuote_ };";
   vm.runInContext(src, ctx);
   const api = ctx.__api;
   Object.assign(api.CONFIG, configOverrides || {});
@@ -115,7 +174,7 @@ function createEnv(configOverrides) {
     const tab = sheets.Reviews;
     tab.appendRow(tab.data[0].map(h => (h in rec ? rec[h] : "")));
   };
-  return { api, ctx, errors, mail, alerts, props, cache, sheet, sheets, ui, post, get, record, setByHeader, addReview };
+  return { api, ctx, errors, mail, alerts, props, cache, sheet, sheets, ui, post, get, record, setByHeader, addReview, stripe, triggers };
 }
 
 function sampleRequest(extra) {

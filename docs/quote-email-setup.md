@@ -23,7 +23,7 @@ Quotes are sent from the Google account that runs the script. Create a free Gmai
 5. In **Config**, fill in:
    - `phone` — your business phone
    - `website` — your website address
-   - `paymentInstructions` — how customers pay, e.g. `Pay by Zelle to (253) 555-0142, cash, or check payable to Pierce County Cleaning Services LLC.` (Invoices won't send until this is filled in.)
+   - `paymentInstructions` — how customers pay, e.g. `Zelle to (253) 555-0142, cash, or check payable to Pierce County Cleaning Services LLC.` (Invoices won't send until this is filled in or Stripe is connected. For a **Pay by card** button on invoices, see [stripe-setup.md](stripe-setup.md).)
 6. Click **Save** (the disk icon).
 
 ## 3. Run setup once
@@ -57,9 +57,9 @@ Quotes are sent from the Google account that runs the script. Create a free Gmai
 | Invoice note | If the final amount differs, a short reason, e.g. `Extra bathroom`. It appears on the invoice. |
 | Notes | The customer's notes from the form (never included in their emails) |
 
-**To send an invoice:** click anywhere in the customer's row, then **PCCS → Send invoice for selected row**. The invoice lists the quoted items, adds a line for any difference with your note, and shows your payment instructions. The row gets an invoice number and moves to **Invoiced**. When you're paid, set Status to **Paid**.
+**To send an invoice:** click anywhere in the customer's row, then **PCCS → Send invoice for selected row**. The invoice lists the quoted items, adds a line for any difference with your note, and shows your payment instructions (and a **Pay by card** button once Stripe is connected). The row gets an invoice number and moves to **Invoiced**. When you're paid, set Status to **Paid**. Card payments are marked Paid automatically.
 
-Other menu items: **Resend quote for selected row** (if a customer lost it) and **Send a test quote to me**.
+Other menu items: **Resend quote for selected row** (if a customer lost it), **Check for card payments**, **Send a test quote to me** and **Connect Stripe (card payments)** ([stripe-setup.md](stripe-setup.md)).
 
 ## When prices change
 

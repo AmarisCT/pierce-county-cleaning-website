@@ -32,7 +32,7 @@
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-head">
   <div class="wrap">
-    <a class="brand" href="index.html"><b>Pierce County Cleaning</b><span>Clean Spaces, Clear Minds.</span></a>
+    <a class="brand" href="index.html"><picture><source media="(max-width:760px)" srcset="assets/logo-row.svg" width="349" height="50"><img src="assets/logo.svg" width="399" height="160" alt="Pierce County Cleaning Services"></picture></a>
     <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">
       <svg width="20" height="12" viewBox="0 0 20 12" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M0 1h20M0 6h20M0 11h20"/></svg>
     </button>
@@ -92,7 +92,7 @@
         <p class="note">Please don't include door or alarm codes here. We collect access details securely once your booking is confirmed.</p>
       </fieldset>
 
-      <fieldset>
+      <fieldset id="q-details">
         <legend>Your details</legend>
         <div class="row">
           <label for="q-name">Name<input id="q-name" name="name" autocomplete="name" required></label>
@@ -116,6 +116,11 @@
       <p class="note">Estimates assume typical condition. When you send your request, we email you a copy of your quote and confirm the final price before booking.</p>
       <div class="result" id="q-result" hidden></div>
     </aside>
+  </div>
+  <!-- Phones: the estimate sits below the form, so a slim bar keeps the price in view while filling it in. -->
+  <div class="est-bar" id="q-bar" hidden>
+    <span><span class="caps">Estimate</span> <b id="q-bar-total">—</b></span>
+    <a href="#q-details" class="link">Send request</a>
   </div>
 </section>
 </main>

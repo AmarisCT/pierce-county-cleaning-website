@@ -66,6 +66,29 @@
   form.addEventListener("change", update);
   update();
 
+  // Phones: show the estimate in a bar at the bottom while the form is on screen, until the
+  // Send button comes into view (the full estimate box sits just below it). CSS hides the bar
+  // on wider screens.
+  var bar = $("q-bar");
+  if (bar && "IntersectionObserver" in window) {
+    var inForm = false, reachedSend = false;
+    var syncBar = function () {
+      $("q-bar-total").textContent = $("q-total").textContent;
+      bar.hidden = !(inForm && !reachedSend && !form.hidden);
+    };
+    new MutationObserver(syncBar).observe($("q-total"), { childList: true, characterData: true, subtree: true });
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.target === form) inForm = en.isIntersecting;
+        else reachedSend = en.isIntersecting || en.boundingClientRect.top < 0;
+      });
+      syncBar();
+    });
+    io.observe(form);
+    io.observe($("q-submit"));
+    syncBar();
+  }
+
   var FIELD_IDS = { name: "q-name", email: "q-email", phone: "q-phone", address: "q-address", zip: "q-zip", propertyType: "q-type", service: "q-service", frequency: "q-frequency", bedrooms: "q-beds", bathrooms: "q-baths" };
 
   function labelOf(el) { return el.closest("label").childNodes[0].textContent.trim(); }

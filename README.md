@@ -20,6 +20,7 @@ Residential and small-business cleaning in Tacoma, Puyallup, Lakewood, Spanaway 
 | `site/` | Built website, ready to host. Don't edit by hand; edit `src/` and rebuild |
 | `internal/pricing-calculator.html` | Private job-profit calculator. **Not part of the public site** — open it locally |
 | `docs/` | Pricing, compliance notes, booking tool comparison, launch checklist |
+| `brand/` | Logo files (SVG and PNG) for Google, Stripe, social profiles and print. Not published with the site; see [brand/README.md](brand/README.md) |
 | `tests/` | Checks for the price estimator and the built pages |
 
 ## Pages
@@ -55,6 +56,8 @@ Free, with no paid form service. The quote page shows an instant estimate from `
 3. emails you an alert with everything they entered.
 
 After the job you send the invoice from the Sheet's **PCCS** menu. Setup takes about 15 minutes: [docs/quote-email-setup.md](docs/quote-email-setup.md).
+
+**Card payments (optional):** connect Stripe from the same menu and each invoice gets a **Pay by card** button for its exact amount. Paid invoices are marked Paid in the Sheet every hour. The Stripe key is stored in the script's private settings, never in this repo. Setup: [docs/stripe-setup.md](docs/stripe-setup.md).
 
 | Path | What it is |
 | --- | --- |

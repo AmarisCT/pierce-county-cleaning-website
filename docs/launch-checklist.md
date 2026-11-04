@@ -7,12 +7,13 @@ Everything here needs the owner. Items are in the order they unblock launch.
 - [ ] Approve or change launch prices in `src/assets/prices.js` (see [pricing.md](pricing.md))
 - [ ] Add business phone and email to `src/assets/config.js`
 - [ ] Confirm the service areas on `service-areas.html`; remove any you won't serve at launch
-- [ ] Confirm the contact hours on `contact.html`
+- [ ] Add office hours to `contact.html` once the cleaner schedule is set (for now the page promises a reply within one business day)
 - [ ] Write a short founding story on `about.html` (TODO marker in the file)
 - [ ] Attorney review of `privacy.html` and `terms.html` (re-clean, cancellation fee, damage, staff non-solicitation)
-- [ ] Set up free quote & invoice emails ([quote-email-setup.md](quote-email-setup.md)) and set `quoteEndpoint`
+- [x] Set up free quote & invoice emails ([quote-email-setup.md](quote-email-setup.md)) and set `quoteEndpoint`
+- [ ] Finish Stripe activation (business category, description, support phone, statement descriptor, payout bank account, terms) and connect it to the invoice sheet ([stripe-setup.md](stripe-setup.md))
 - [ ] Confirm ownership of the domain (piercecountycleaning.com was a proposal, not confirmed)
-- [ ] Add the logo file to `src/assets/` and the header in `build.js`
+- [x] Add the logo file to `src/assets/` and the header in `build.js` (logo files for other places are in [`brand/`](../brand/README.md))
 - [ ] Review the 15 stock photos on the live preview and swap any you don't like (see [photos.md](photos.md)); replace with your own job photos over time
 - [ ] Only after certificates exist: add "insured and bonded" to `about.html`
 
